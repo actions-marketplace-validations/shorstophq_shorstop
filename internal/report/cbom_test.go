@@ -288,3 +288,46 @@ func TestHelpers(t *testing.T) {
 		t.Errorf("NewSerialNumber() = %q, %v", s, err)
 	}
 }
+
+// TestCBOMHybridHalf: "X25519MLKEM768:X25519" enables X25519 inside the
+// hybrid and on its own. They're two components: the hybrid half rated
+// quantum-safe, the plain fallback quantum-vulnerable.
+func TestCBOMHybridHalf(t *testing.T) {
+	snippet := "ssl_ecdh_curve X25519MLKEM768:X25519;"
+	fs := []detect.Finding{
+		{RuleID: "tls-group", Algorithm: "X25519", Primitive: "key-agree", KeySize: 255, Hybrid: "X25519MLKEM768", File: "nginx.conf", Line: 3, Snippet: snippet},
+		{RuleID: "tls-group", Algorithm: "ML-KEM", Primitive: "kem", ParameterSet: "ML-KEM-768", File: "nginx.conf", Line: 3, Snippet: snippet},
+		{RuleID: "tls-group", Algorithm: "X25519", Primitive: "key-agree", KeySize: 255, File: "nginx.conf", Line: 3, Snippet: snippet},
+	}
+	status := map[string]string{}
+	hybrid := map[string]string{}
+	for _, c := range CBOM(fs, fixedOpts).Components {
+		for _, p := range c.Properties {
+			switch p.Name {
+			case "shorstop:status":
+				status[c.BOMRef] = p.Value
+			case "shorstop:hybrid":
+				hybrid[c.BOMRef] = p.Value
+			}
+		}
+	}
+	half, alone := "crypto:algorithm:X25519:key-agree:hybrid:X25519MLKEM768", "crypto:algorithm:X25519:key-agree"
+	if status[half] != "QUANTUM_SAFE" || hybrid[half] != "X25519MLKEM768" {
+		t.Errorf("hybrid half: status %q, hybrid %q; components %v", status[half], hybrid[half], status)
+	}
+	if status[alone] != "QUANTUM_VULNERABLE" || hybrid[alone] != "" {
+		t.Errorf("plain X25519: status %q, hybrid %q", status[alone], hybrid[alone])
+	}
+	if Fingerprint(fs[0]) == Fingerprint(fs[2]) {
+		t.Error("the hybrid half and the plain curve share a fingerprint, so a baseline would confuse them")
+	}
+}
+
+// TestFingerprintUnchangedWithoutHybrid pins one fingerprint, so adding
+// fields to it can't silently break every existing baseline.
+func TestFingerprintUnchangedWithoutHybrid(t *testing.T) {
+	f := detect.Finding{RuleID: "go-rsa-generate-key", File: "server/keys.go", Algorithm: "RSA", KeySize: 1024, Snippet: "return rsa.GenerateKey(rand.Reader, 1024)"}
+	if got, want := Fingerprint(f), "016e4a08225f73bc9c3b5c8bf04eec30"; got != want {
+		t.Errorf("Fingerprint = %s, want %s (the v0.1.2 value)", got, want)
+	}
+}

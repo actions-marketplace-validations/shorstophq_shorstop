@@ -184,3 +184,26 @@ func TestSeverityRank(t *testing.T) {
 		t.Error("unknown severity has a rank")
 	}
 }
+
+// TestHybridHalf: the classical half of a hybrid key exchange is protected
+// by the post-quantum half; the same curve on its own is not.
+func TestHybridHalf(t *testing.T) {
+	alone := Classify(detect.Finding{Algorithm: "X25519", Primitive: "key-agree", KeySize: 255})
+	half := Classify(detect.Finding{Algorithm: "X25519", Primitive: "key-agree", KeySize: 255, Hybrid: "X25519MLKEM768"})
+	if alone.Status != QuantumVulnerable || alone.Severity != High {
+		t.Errorf("X25519 alone = %s/%s, want QUANTUM_VULNERABLE/high", alone.Status, alone.Severity)
+	}
+	if half.Status != QuantumSafe || half.Severity != Info || !strings.Contains(half.Reason, "X25519MLKEM768") {
+		t.Errorf("X25519 in a hybrid = %+v, want QUANTUM_SAFE/info naming the hybrid", half)
+	}
+	p256 := Classify(detect.Finding{Algorithm: "ECDH", Primitive: "key-agree", KeySize: 256, Hybrid: "SECP256R1MLKEM768"})
+	if p256.Status != QuantumSafe {
+		t.Errorf("P-256 in a hybrid = %s, want QUANTUM_SAFE", p256.Status)
+	}
+	// Only quantum-vulnerable algorithms are rescued by the hybrid: a broken
+	// algorithm in the same field would still be broken.
+	md5 := Classify(detect.Finding{Algorithm: "MD5", Primitive: "hash", Hybrid: "X"})
+	if md5.Status != Broken {
+		t.Errorf("MD5 with Hybrid set = %s, want BROKEN", md5.Status)
+	}
+}

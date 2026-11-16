@@ -32,6 +32,10 @@ var sha1Hash = algo{alg: "SHA-1", prim: "hash"}
 // sshKex names the algorithms of an SSH key-exchange method.
 func sshKex(n string) []algo {
 	n = strings.TrimSuffix(strings.TrimSuffix(n, "@libssh.org"), "@openssh.com")
+	return inHybrid(sshKexAlgos(n), n)
+}
+
+func sshKexAlgos(n string) []algo {
 	switch n {
 	case "curve25519-sha256":
 		return []algo{x25519}

@@ -282,6 +282,8 @@ func assetLabel(f detect.Finding) string {
 		return strings.TrimSpace(cmp.Or(algName(f), "unknown-algorithm") + " " + strings.ReplaceAll(f.MaterialType, "-", " "))
 	case f.AssetType == detect.AssetCertificate:
 		return "certificate with " + cmp.Or(algName(f), "unknown") + " key"
+	case f.Hybrid != "":
+		return algName(f) + " in " + f.Hybrid
 	}
 	return cmp.Or(algName(f), "unknown algorithm")
 }
@@ -307,9 +309,15 @@ func location(f detect.Finding) sarifLocation {
 // Fingerprint identifies a finding across scans without its line number:
 // rule, file, what was found and the trimmed source line.
 func Fingerprint(f detect.Finding) string {
-	h := sha256.Sum256([]byte(strings.Join([]string{
+	parts := []string{
 		f.RuleID, f.File, f.Algorithm, strconv.Itoa(f.KeySize), f.Mode, f.ParameterSet,
 		f.MaterialType, f.Protocol, f.PURL, f.Snippet,
-	}, "\x00")))
+	}
+	// Added only when set, so every other finding keeps the fingerprint it
+	// had before Hybrid existed, and existing baselines still match.
+	if f.Hybrid != "" {
+		parts = append(parts, "hybrid="+f.Hybrid)
+	}
+	h := sha256.Sum256([]byte(strings.Join(parts, "\x00")))
 	return hex.EncodeToString(h[:16])
 }

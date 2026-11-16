@@ -271,6 +271,7 @@ func algos(rule string, as []algo) []detect.Finding {
 	for _, a := range as {
 		out = append(out, detect.Finding{
 			RuleID: rule, Algorithm: a.alg, Primitive: a.prim, KeySize: a.bits, Mode: a.mode, ParameterSet: a.param,
+			Hybrid: a.hybrid,
 		})
 	}
 	return out
