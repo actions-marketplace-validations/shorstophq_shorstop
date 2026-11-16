@@ -3,3 +3,9 @@
 *.test
 *.out
 /completions/
+# Docs site (site/): build output, and the rules reference, which is
+# generated from the code at build time (scripts/rulesdoc).
+/site/public/
+/site/resources/
+/site/.hugo_build.lock
+/site/content/docs/rules.md

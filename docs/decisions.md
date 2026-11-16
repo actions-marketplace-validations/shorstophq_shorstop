@@ -1351,6 +1351,30 @@ The `standard` set plus `errorlint`, `misspell`, `unconvert`, `gocritic`. `gosec
 - About 16 s and 340 KB, 1500×760 so no line wraps. Shows three things only: the table, `--fail-on` failing CI, and a CBOM.
 - **Docker recipe in the header** for machines where `brew install vhs` builds `cmake` and `ttyd` from source (Intel Macs). Files are copied in with `docker cp` rather than mounted, so no Docker Desktop file sharing has to be configured. The pinned `vhs:v0.10.0` image is Debian bookworm and lacks `git` and `jq`; apt needs `--allow-releaseinfo-change` since `stable` moved to trixie.
 
+### Docs site: `site/` (Phase 7)
+- **Hugo with the Hextra theme**, not MkDocs as first planned. When the site was started (2026-11-16), Material for MkDocs, the theme nearly every MkDocs site uses, had gone into maintenance mode with an announced end of life of 2026-11-05, and MkDocs 2.0 was a rewrite that drops plugins and breaks themes. Starting there meant migrating within months. *Options weighed:* Hugo + Hextra; Zensical (Material's successor, very young); Jekyll on GitHub Pages (no build step, but basic search and navigation). **Chose Hugo + Hextra** (project owner's choice): a single Go binary that has been stable for over ten years; Hextra needs no Node toolchain; it builds in under a second.
+- **`site/` is its own Go module** (`github.com/shorstophq/shorstop/site`), because Hugo modules need a `go.mod`. That also keeps it out of the scanner's `go test ./...`, lint and release. The theme is pinned in `site/go.mod` (`hextra v0.13.0`) and Hugo in `pages.yml` (`0.170.0`), so a theme or Hugo release can't change the site without a commit.
+- **The demo GIF is mounted, not copied** (`module.mounts` in `hugo.yaml`), so the README and the site always show the same recording. Defining any mount replaces Hugo's defaults, so `content`, `layouts` and `static` are listed again.
+- **Raw HTML stays off** (`goldmark.renderer.unsafe: false`); the landing page uses Hextra's shortcodes only.
+- **`layouts/_partials/custom/head-end.html`** turns off ligatures in code, because the theme's mono font draws `--flag` as a dash and people copy what they see, and keeps rule IDs on one line in tables.
+- **Every command and claim on the pages was run or checked first**, against v0.1.2: the install snippet in clean Debian and Alpine containers, the Docker and GitLab recipes, the config errors and flag precedence, custom `goast` and `deps` rules, the CBOM query, and that baselined findings stay in the CBOM. Doing so found that **regenerating a baseline while `.shorstop.yaml` sets `baseline:` writes an empty baseline**, because the configured baseline filters the output. The Baselines page therefore uses `--baseline ""` and warns about it. It also found that report files left in the scanned tree are scanned (now in Known limitations).
+- The repository's `.shorstop.yaml` excludes `site/`: like `docs/` and the README, it names algorithms on purpose.
+
+### `scripts/rulesdoc` (Phase 7)
+- **Generates the rules reference at build time; the page is gitignored.** *Options:* (a) commit the generated page and check in CI that it's current; (b) generate it in the Pages build. **Chose (b):** nothing to forget to regenerate, and the reference always describes the code in the same commit. *Cost:* `make docs` needs Go as well as Hugo, which a Go project's contributors have anyway.
+- **Same sources as `shorstop rules list`:** the built-in pack plus `cert.RuleDescriptions` and `config.RuleDescriptions`, so the page and the CLI can't disagree on the 225 rules.
+- **Grouped by where people look:** Go; patterns by language (a rule listed under each language it applies to, catch-all rules last); dependencies by ecosystem; then certificates and configuration. Regex rules show their first `example`, since the examples are checked on every load and are the clearest description of what a rule finds.
+- Counts (rules, languages, ecosystems) are computed from the pack, not written in the text. The first draft said "12 languages" (`rules.Languages` has 12 keys, but no pattern rule targets Go, which the parser covers), and rendering it showed the mismatch.
+- **Table safety:** `code()` escapes `|` (GFM tables split cells on it before inline parsing, even inside code) and lengthens the backtick fence when the text holds backticks. `TestEveryRuleListed` checks every rule appears and every row has the header's cell count; `TestCode` covers the escaping.
+- The page's front matter sets `editURL` to `internal/rules/rules.yaml`, so "Edit this page" leads to where rules are actually changed.
+
+### `.github/workflows/pages.yml` (Phase 7)
+- **Pull requests build, `main` builds and deploys**, with `--panicOnWarning`, so a deprecated shortcode or a broken template fails before merge rather than after.
+- **Hugo is downloaded from its GitHub release and checked against the release's `checksums.txt`**, not installed by a third-party setup action: one less action with access to the job. The install step was run in a clean Debian container before committing.
+- Actions pinned to commit SHAs like the other workflows (`upload-pages-artifact` v5.0.0, `deploy-pages` v5.0.1). `configure-pages` isn't used: the base URL is fixed in `hugo.yaml`.
+- **`path` filters** limit runs to changes that affect the site: `site/`, the generator, the rule pack and the cert/config detectors (whose descriptions are on the page), and the demo GIF. The list is a YAML anchor shared by `push` and `pull_request`.
+- `deploy` alone gets `pages: write` and `id-token: write`; the build job only reads. Concurrency queues deployments instead of cancelling one mid-publish.
+
 ### `LICENSE`
 Apache 2.0, as the plan specifies. Downloaded verbatim from apache.org (sha256 `cfc7749b…3d30`), not retyped. Chosen over MIT for its explicit patent grant, which matters for a crypto tool that companies will adopt.
 

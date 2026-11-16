@@ -1,0 +1,76 @@
+# ShorStop docs site: Hugo with the Hextra theme, deployed to GitHub Pages by
+# .github/workflows/pages.yml. Local preview (from the repository root):
+#
+#   make docs-serve
+#
+# The rules reference (content/docs/rules.md) is generated from the code at
+# build time and isn't committed; see scripts/rulesdoc.
+
+baseURL: https://shorstophq.github.io/shorstop/
+title: ShorStop
+locale: en-US
+enableRobotsTXT: true
+
+module:
+  hugoVersion:
+    min: "0.146.0"
+  imports:
+    - path: github.com/imfing/hextra
+  mounts:
+    # Defining mounts replaces Hugo's defaults, so content and layouts are
+    # listed again. The demo GIF is shared with the README rather than copied.
+    - source: content
+      target: content
+    - source: layouts
+      target: layouts
+    - source: static
+      target: static
+    - source: ../docs/demo.gif
+      target: static/demo.gif
+
+markup:
+  highlight:
+    noClasses: false
+  goldmark:
+    renderer:
+      unsafe: false
+
+menu:
+  main:
+    - name: Docs
+      pageRef: /docs
+      weight: 1
+    - name: Rules
+      pageRef: /docs/rules
+      weight: 2
+    - name: Search
+      weight: 3
+      params:
+        type: search
+    - name: GitHub
+      weight: 4
+      url: https://github.com/shorstophq/shorstop
+      params:
+        icon: github
+
+params:
+  description: >-
+    ShorStop finds the cryptography a quantum computer will break, and the crypto
+    that's already broken, in code, certificates, configuration and dependencies.
+  navbar:
+    displayTitle: true
+    displayLogo: false
+  footer:
+    displayCopyright: false
+    displayPoweredBy: false
+  editURL:
+    enable: true
+    base: https://github.com/shorstophq/shorstop/edit/main/site/content
+  page:
+    width: wide
+  theme:
+    default: system
+    displayToggle: true
+  search:
+    enable: true
+    type: flexsearch
