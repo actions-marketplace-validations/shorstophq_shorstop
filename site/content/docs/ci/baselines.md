@@ -1,4 +1,6 @@
 ---
+description: >-
+  Adopt ShorStop on an existing codebase: record today's crypto findings in a baseline and fail CI only on new ones.
 title: Baselines
 weight: 3
 ---

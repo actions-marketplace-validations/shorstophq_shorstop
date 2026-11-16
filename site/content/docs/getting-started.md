@@ -1,4 +1,6 @@
 ---
+description: >-
+  Install ShorStop with Homebrew, Docker, signed binaries or go install, run your first post-quantum cryptography scan, and read the results.
 title: Getting started
 weight: 10
 ---

@@ -1,4 +1,6 @@
 ---
+description: >-
+  The ShorStop GitHub Action: Sigstore-verified install, quantum-vulnerable crypto findings in GitHub code scanning, inputs, outputs and recipes.
 title: GitHub Actions
 weight: 1
 ---

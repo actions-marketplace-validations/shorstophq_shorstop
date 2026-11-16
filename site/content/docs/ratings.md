@@ -1,4 +1,6 @@
 ---
+description: >-
+  How ShorStop rates cryptography: BROKEN, QUANTUM_VULNERABLE, WEAKENED and QUANTUM_SAFE statuses, severities, and why key exchange is more urgent than signatures.
 title: How findings are rated
 linkTitle: Ratings
 weight: 40

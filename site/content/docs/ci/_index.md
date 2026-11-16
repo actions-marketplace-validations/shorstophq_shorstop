@@ -1,4 +1,6 @@
 ---
+description: >-
+  Run ShorStop in CI: exit codes, the GitHub Action, other CI systems, and baselines for existing codebases.
 title: In CI
 weight: 20
 ---

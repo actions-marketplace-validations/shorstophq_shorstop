@@ -69,6 +69,8 @@ func write(w io.Writer, pack *rules.Pack, certRules, configRules map[string]stri
 
 	fmt.Fprintf(w, `---
 title: Rules reference
+description: >-
+  Every ShorStop rule for finding RSA, ECC, DH, MD5, SHA-1, DES and other cryptography in Go, Java, Python, JavaScript and more, with examples.
 weight: 60
 editURL: https://github.com/shorstophq/shorstop/edit/main/internal/rules/rules.yaml
 ---

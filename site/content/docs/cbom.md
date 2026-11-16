@@ -1,4 +1,6 @@
 ---
+description: >-
+  What a Cryptographic Bill of Materials (CBOM) is, and what ShorStop puts in its CycloneDX 1.6 CBOM: algorithms, certificates, protocols and libraries.
 title: The CBOM
 weight: 50
 ---

@@ -1,4 +1,6 @@
 ---
+description: >-
+  Run ShorStop in GitLab CI, with Docker, or on any CI runner with a checksum-verified install script.
 title: Other CI systems
 weight: 2
 ---

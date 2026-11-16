@@ -1,4 +1,6 @@
 ---
+description: >-
+  What ShorStop, a static post-quantum cryptography scanner, can and can't detect, and its known false positives and negatives.
 title: Known limitations
 linkTitle: Limitations
 weight: 70

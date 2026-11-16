@@ -1,4 +1,24 @@
-{{- /* Site-wide CSS tweaks, loaded by Hextra at the end of <head>. */ -}}
+{{- /* Site-wide additions, loaded by Hextra at the end of <head>. */ -}}
+{{- with site.Params.googleSiteVerification }}
+<meta name="google-site-verification" content="{{ . }}">
+{{- end }}
+{{- if .IsHome }}
+{{- /* Structured data, so search engines know this is free developer software. */}}
+{{- $app := dict
+  "@context" "https://schema.org"
+  "@type" "SoftwareApplication"
+  "name" "ShorStop"
+  "description" site.Params.description
+  "url" site.Home.Permalink
+  "applicationCategory" "DeveloperApplication"
+  "operatingSystem" "Linux, macOS, Windows"
+  "license" "https://www.apache.org/licenses/LICENSE-2.0"
+  "downloadUrl" "https://github.com/shorstophq/shorstop/releases"
+  "codeRepository" "https://github.com/shorstophq/shorstop"
+  "offers" (dict "@type" "Offer" "price" "0" "priceCurrency" "USD")
+}}
+<script type="application/ld+json">{{ $app | jsonify | safeJS }}</script>
+{{- end }}
 <style>
   /* Show "--flag" as two hyphens: the code font otherwise joins them into a
      dash, and readers copy what they see. */

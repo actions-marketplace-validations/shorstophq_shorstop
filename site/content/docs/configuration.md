@@ -1,4 +1,6 @@
 ---
+description: >-
+  Configure ShorStop with .shorstop.yaml, suppress accepted findings with shorstop:ignore, and write custom detection rules.
 title: Configuration
 weight: 30
 ---

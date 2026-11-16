@@ -1,4 +1,6 @@
 ---
+description: >-
+  Documentation for ShorStop, the post-quantum cryptography scanner: install, CI, configuration, ratings, the CBOM and every rule.
 title: Documentation
 linkTitle: Docs
 ---

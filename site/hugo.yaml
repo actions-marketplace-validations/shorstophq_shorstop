@@ -7,9 +7,15 @@
 # build time and isn't committed; see scripts/rulesdoc.
 
 baseURL: https://shorstophq.github.io/shorstop/
-title: ShorStop
+# Shown in browser tabs and search results; the navbar shows navbar.title.
+title: "ShorStop: post-quantum cryptography scanner"
 locale: en-US
 enableRobotsTXT: true
+# lastmod for each page comes from its last commit, so the sitemap tells
+# search engines what changed (pages.yml checks out full history for this).
+enableGitInfo: true
+# No tags or categories: they'd only add empty pages to the sitemap.
+disableKinds: [taxonomy, term]
 
 module:
   hugoVersion:
@@ -55,9 +61,16 @@ menu:
 
 params:
   description: >-
-    ShorStop finds the cryptography a quantum computer will break, and the crypto
-    that's already broken, in code, certificates, configuration and dependencies.
+    Open-source scanner for quantum-vulnerable and broken cryptography in code,
+    certificates, configs and dependencies. Writes a CycloneDX CBOM and SARIF.
+  # Link preview image (og:image) for every page.
+  images: [og.png]
+  # Google Search Console's HTML-tag verification code for the URL-prefix
+  # property https://shorstophq.github.io/shorstop/ (the content="..." value).
+  # Empty means no tag is written.
+  googleSiteVerification: BOZat5nRCsjjE4tYR-u7D--ac089OJkvsXtcxN9tq3o
   navbar:
+    title: ShorStop   # see layouts/_partials/navbar-title.html
     displayTitle: true
     displayLogo: false
   footer:

@@ -1,5 +1,7 @@
 ---
-title: ShorStop
+description: >-
+  Open-source scanner for quantum-vulnerable and broken cryptography in code, certificates, configs and dependencies. Writes a CycloneDX CBOM and SARIF.
+title: "ShorStop: post-quantum cryptography scanner"
 layout: hextra-home
 ---
 
