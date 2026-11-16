@@ -1,0 +1,68 @@
+name: New rule
+description: Ask ShorStop to detect a crypto library, API, config setting or dependency it doesn't know yet.
+title: "Rule: "
+labels: ["rule"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Rules are how ShorStop learns new code. If you'd like to write it yourself, see
+        [Adding a rule](https://github.com/shorstophq/shorstop/blob/main/CONTRIBUTING.md#adding-a-rule)
+        and open a pull request directly: a rule with `examples` and a fixture is easy to review.
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where does it appear?
+      options:
+        - Source code (C)
+        - Source code (C++)
+        - Source code (C#)
+        - Source code (Go)
+        - Source code (Java)
+        - Source code (JavaScript)
+        - Source code (Kotlin)
+        - Source code (PHP)
+        - Source code (Python)
+        - Source code (Ruby)
+        - Source code (Rust)
+        - Source code (TypeScript)
+        - A dependency (package manifest or lockfile)
+        - A config file (TLS, SSH, OpenSSL, Kubernetes...)
+        - Somewhere else (say below)
+    validations:
+      required: true
+  - type: input
+    id: algorithm
+    attributes:
+      label: Algorithm
+      description: What it uses, with key size or mode if you know it.
+      placeholder: "RSA-2048, ECDSA P-256, AES-128-ECB, ML-KEM-768..."
+    validations:
+      required: true
+  - type: textarea
+    id: examples
+    attributes:
+      label: Code that should be found
+      description: |
+        A few real lines that should match, one per line. These become the rule's `examples`,
+        which are checked every time the rules load. Please strip anything private.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: not-examples
+    attributes:
+      label: Similar code that should NOT be found (optional)
+      description: Lines that look alike but aren't this algorithm. They keep the rule from causing false positives.
+      render: text
+  - type: input
+    id: package
+    attributes:
+      label: Library or package, with a link (optional)
+      placeholder: "node-forge, org.bouncycastle:bcprov-jdk18on, golang.org/x/crypto/ssh..."
+  - type: checkboxes
+    id: contribute
+    attributes:
+      label: Contributing
+      options:
+        - label: I'd like to write this rule myself.

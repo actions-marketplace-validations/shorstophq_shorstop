@@ -1337,6 +1337,13 @@ The `standard` set plus `errorlint`, `misspell`, `unconvert`, `gocritic`. `gosec
 - **No CLA or DCO sign-off.** Apache 2.0 section 5 already licenses contributions under the project's license unless stated otherwise, so the file says that instead of adding a signing step that would put off small contributors. It can be added later if a company backs the project.
 - Every command in it was run before it was written down (`make test`, `make lint`, `-update` on all six packages leaves the goldens unchanged).
 
+### `.github/ISSUE_TEMPLATE/` (Phase 7)
+- **Issue forms (YAML), not Markdown templates**, so required fields are enforced: a missed-detection report without the input that shows it can't be acted on.
+- **Three forms, split by what the maintainer does next:** *New rule* (write a rule), *Missed detection / false positive / wrong severity* (fix a rule or detector), *Bug* (fix code or packaging). The plan calls community rules the growth engine, so the rule form comes first, links to CONTRIBUTING.md's "Adding a rule", and asks for exactly what a rule needs: lines that should match (they become the rule's checked `examples`) and lines that shouldn't (they stop false positives).
+- **The "where" dropdown lists `rules.Languages`** plus dependencies and config files, so it matches what ShorStop can actually scan. It has to be updated when a language is added.
+- **`config.yml` turns off blank issues** and adds a link for reporting vulnerabilities privately, so security reports aren't filed as public issues. *Cost:* someone with an issue that fits no form has to pick the closest one.
+- **Labels `rule`, `detection`, `bug`.** GitHub silently skips labels that don't exist, so `rule` and `detection` are created in the repository settings.
+
 ### `LICENSE`
 Apache 2.0, as the plan specifies. Downloaded verbatim from apache.org (sha256 `cfc7749b…3d30`), not retyped. Chosen over MIT for its explicit patent grant, which matters for a crypto tool that companies will adopt.
 
