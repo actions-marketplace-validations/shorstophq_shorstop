@@ -36,6 +36,10 @@ type Options struct {
 	Workers     int      // number of files processed in parallel; at least 1
 	MaxFileSize int64    // files larger than this many bytes are skipped
 	Excludes    []string // extra gitignore-style patterns, relative to Root
+	// SkipContent, if set, is shown the start of every text file (up to
+	// 8000 bytes); a file it returns true for is skipped and counted in
+	// Stats.Reports. The scan uses it to leave out ShorStop's own reports.
+	SkipContent func(head []byte) bool
 }
 
 // Result is the outcome of a scan. Every slice is sorted, so the same tree
@@ -55,6 +59,7 @@ type Stats struct {
 	Binary     int // binary files that no detector asked for
 	NotRegular int // symlinks, sockets, devices, FIFOs
 	Failed     int // files that could not be opened or read
+	Reports    int // files Options.SkipContent set aside
 }
 
 // FileError is a problem with one file or directory.
@@ -74,6 +79,7 @@ const (
 	outcomeBinary
 	outcomeNotRegular
 	outcomeFailed
+	outcomeReport
 )
 
 // fileResult is everything one worker learned about one file. Workers send one
@@ -211,6 +217,10 @@ func scanFile(ctx context.Context, opts Options, dets []detect.Detector, rel str
 		r.outcome = outcomeBinary
 		return r
 	}
+	if !binary && opts.SkipContent != nil && opts.SkipContent(head) {
+		r.outcome = outcomeReport
+		return r
+	}
 	r.outcome = outcomeScanned
 	if len(wanted) == 0 {
 		return r
@@ -281,6 +291,8 @@ func (res *Result) add(r fileResult) {
 		res.Stats.NotRegular++
 	case outcomeFailed:
 		res.Stats.Failed++
+	case outcomeReport:
+		res.Stats.Reports++
 	}
 	res.Findings = append(res.Findings, r.findings...)
 	if r.err != nil {

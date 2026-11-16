@@ -31,7 +31,7 @@ func WriteMarkdown(w io.Writer, fs []detect.Finding, opts MarkdownOptions) error
 	groups := groupFindings(fs, opts.IncludeInfo)
 	var b strings.Builder
 
-	b.WriteString("## ShorStop post-quantum scan\n\n")
+	b.WriteString(markdownHeading + "\n\n")
 	listed := 0
 	for _, g := range groups {
 		listed += len(g.items)

@@ -232,7 +232,7 @@ func WriteSARIF(w io.Writer, fs []detect.Finding, opts SARIFOptions) error {
 		Schema:  "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json",
 		Version: "2.1.0",
 		Runs: []sarifRun{{
-			Tool:    sarifTool{Driver: sarifDriver{Name: "shorstop", Version: opts.ToolVersion, InformationURI: informationURI, Rules: rulesOut}},
+			Tool:    sarifTool{Driver: sarifDriver{Name: ToolName, Version: opts.ToolVersion, InformationURI: informationURI, Rules: rulesOut}},
 			Results: results,
 		}},
 	}

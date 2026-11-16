@@ -19,6 +19,7 @@ import (
 	"github.com/shorstophq/shorstop/internal/detect"
 	"github.com/shorstophq/shorstop/internal/detect/cert"
 	"github.com/shorstophq/shorstop/internal/detect/config"
+	"github.com/shorstophq/shorstop/internal/report"
 	"github.com/shorstophq/shorstop/internal/rules"
 	"github.com/shorstophq/shorstop/internal/settings"
 )
@@ -120,6 +121,9 @@ func runScan(ctx context.Context, o *scanOptions, stdout, stderr io.Writer) erro
 	excludes := append(slices.Clone(o.excludes), selfExcludes(o.dir, append([]string{cfg.Path, o.baseline, o.output}, o.ruleFiles...)...)...)
 	res, err := crawler.Scan(ctx, crawler.Options{
 		Root: o.dir, Workers: o.workers, MaxFileSize: int64(o.maxFileSize), Excludes: excludes,
+		// Earlier reports name every algorithm they found; scanning them
+		// would report each one again.
+		SkipContent: report.IsOwnReport,
 	}, detectors(pack))
 	if err != nil {
 		return err

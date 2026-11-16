@@ -71,7 +71,7 @@ func CBOM(fs []detect.Finding, opts CBOMOptions) *cbom.BOM {
 		Metadata: cbom.Metadata{
 			Timestamp: opts.Timestamp.UTC().Format(time.RFC3339),
 			Tools: cbom.Tools{Components: []cbom.Component{{
-				Type: cbom.TypeApplication, Name: "shorstop", Version: opts.ToolVersion,
+				Type: cbom.TypeApplication, Name: ToolName, Version: opts.ToolVersion,
 			}}},
 			Component: &cbom.Component{BOMRef: projectRef, Type: cbom.TypeApplication, Name: cmp.Or(opts.ProjectName, "project")},
 		},

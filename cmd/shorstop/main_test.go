@@ -451,3 +451,28 @@ func TestResolveVersionFallback(t *testing.T) {
 		t.Errorf("resolveVersion() = %q, want %q", got, "dev")
 	}
 }
+
+// TestOwnReportsAreNotScanned: reports left in the tree (here under names
+// ShorStop isn't told about) would otherwise report every algorithm they
+// mention as a new finding.
+func TestOwnReportsAreNotScanned(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "app.py"), []byte("import hashlib\nhashlib.md5(b)\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	scan := func(args ...string) (int, string, string) {
+		var stdout, stderr bytes.Buffer
+		code := run(context.Background(), append([]string{"scan", dir}, args...), &stdout, &stderr)
+		return code, stdout.String(), stderr.String()
+	}
+	_, before, _ := scan()
+	for _, f := range []struct{ format, name string }{{"sarif", "old.sarif"}, {"cbom", "cbom.json"}, {"markdown", "report.md"}} {
+		if code, _, stderr := scan("-f", f.format, "-o", filepath.Join(dir, f.name)); code != exitOK {
+			t.Fatalf("%s: code %d: %s", f.format, code, stderr)
+		}
+	}
+	_, after, _ := scan()
+	if !strings.Contains(after, "1 findings · 1 critical") || !strings.Contains(after, "3 ShorStop reports") {
+		t.Errorf("before the reports:\n%s\nafter:\n%s", before, after)
+	}
+}

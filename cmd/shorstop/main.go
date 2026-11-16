@@ -165,8 +165,8 @@ func summary(res *crawler.Result, env renderEnv) string {
 	if env.baselined > 0 {
 		extra += fmt.Sprintf(" · %d in baseline", env.baselined)
 	}
-	return fmt.Sprintf("Scanned %d files · %d findings%s%s (skipped: %d ignored, %d too large, %d binary, %d not regular, %d failed) · %d warnings",
-		s.Scanned, len(res.Findings), report.Count(res.Findings), extra, s.Ignored, s.TooLarge, s.Binary, s.NotRegular, s.Failed, len(res.Errors))
+	return fmt.Sprintf("Scanned %d files · %d findings%s%s (skipped: %d ignored, %d too large, %d binary, %d not regular, %d failed, %d ShorStop reports) · %d warnings",
+		s.Scanned, len(res.Findings), report.Count(res.Findings), extra, s.Ignored, s.TooLarge, s.Binary, s.NotRegular, s.Failed, s.Reports, len(res.Errors))
 }
 
 func resolveVersion() string {
