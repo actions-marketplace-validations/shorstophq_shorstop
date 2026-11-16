@@ -32,16 +32,10 @@ spots is trusted less, not more.
 - **OpenSSL cipher sets that depend on the build** (`HIGH`, `MEDIUM`,
   `DEFAULT`) aren't expanded, so `MEDIUM` on an old OpenSSL that still includes
   3DES isn't caught.
-- **Hybrid key exchange:** in `X25519MLKEM768`, the X25519 half is reported as
-  quantum-vulnerable even though the hybrid protects it.
 - **Maven `${property}` versions and Gradle version catalogs** aren't
   resolved, so those dependencies are reported without a version.
 - **Lockfiles over 2 MB** are skipped by default. Raise the limit with
   `--max-file-size` or `max-file-size:` in `.shorstop.yaml`.
-- **Report files in the scanned directory are scanned.** A SARIF or CBOM report
-  left in the tree mentions algorithms by name, and those mentions are found.
-  ShorStop skips the baseline it's using and the file it's writing; write other
-  reports outside the scanned directory, or exclude them.
 
 Found another one? [Open an issue](https://github.com/shorstophq/shorstop/issues/new/choose)
 with the smallest input that shows it.

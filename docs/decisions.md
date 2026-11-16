@@ -478,7 +478,7 @@ Rates a finding: a **status** (`QUANTUM_VULNERABLE`, `WEAKENED`, `BROKEN`, `INSE
   - **sntrup761** is QUANTUM_SAFE, with a reason that says it's not NIST-standardised. **MD2/MD4** are BROKEN like MD5. **SHA-224** is ACCEPTABLE.
   - **Unknown algorithm** (crypto toolkits, undecodable material) is UNKNOWN/low with "check which algorithms it is used with".
 - **Severity: `info`** is added below the plan's four levels for ACCEPTABLE and QUANTUM_SAFE, so every finding has a severity, and `--fail-on low` (Phase 5) won't fail on AES-256.
-- **Known limitation, hybrids:** `X25519MLKEM768` reports X25519 and ML-KEM separately, and the X25519 half is rated high. In a hybrid the X25519 half isn't a risk, but on most real lines (`X25519MLKEM768:X25519`, `sntrup761x25519-sha512,curve25519-sha256`) plain X25519 is also offered as a fallback, and the crawler's merge folds the two into one finding. Telling them apart needs a "hybrid" flag set by the detector. *Open:* add it when the CBOM reporter needs hybrid components (CycloneDX models them as a combiner).
+- ~~**Known limitation, hybrids:** the X25519 half of `X25519MLKEM768` was rated high, and merged with a plain X25519 fallback on the same line.~~ Fixed in v0.1.3 with `Finding.Hybrid`; see "Hybrid key exchange (v0.1.3)" below.
 
 ### `type Status` / `type Severity` / `func (Severity) Rank() int`
 Typed strings, so JSON/SARIF output can use them as they are, and a typo is a compile error. `Rank` gives the order (critical 5 … info 1, 0 for anything unknown) for sorting and for the Phase 5 `--fail-on` threshold.
@@ -1406,9 +1406,33 @@ Apache 2.0, as the plan specifies. Downloaded verbatim from apache.org (sha256 `
 - **Output is deterministic at this scale:** the six JSON reports are identical apart from the CBOM `timestamp` and `serialNumber`, which are meant to change per run, and three SARIF runs are byte-identical.
 - **Consequences:** the "revisit if benchmarks show…" items in the crawler (`sync.Pool` buffers, a parallel walker) stay closed: neither would matter at 1 s. `--workers` keeps its `NumCPU` default, since 16 is no slower than 8.
 
+## Fixes before launch (v0.1.3)
+
+Three problems found while checking every claim on the docs site against v0.1.2.
+
+### Own reports are never scanned: `report.IsOwnReport`, `crawler.Options.SkipContent`
+- **Problem:** a SARIF, CBOM or Markdown report left in the scanned tree names every algorithm it found, and the next scan reported them all again: the demo repository's 22 findings became 71 to 224. `selfExcludes` only covered the baseline in use and the file being written.
+- *Options:* (a) skip by file name (`*.sarif`, `cbom.json`), which misses renamed reports and would skip other tools' SARIF; (b) recognise ShorStop's own output by content. **Chose (b).** The crawler already reads each file's first 8000 bytes to detect binary files, and every format identifies ShorStop near its start: SARIF's `runs[0].tool.driver.name`, the CBOM's `metadata.tools.components[0].name` (both `"shorstop"`, now the shared constant `report.ToolName`), and the Markdown heading. Matching is whitespace-tolerant, so a report reformatted by `jq` or minified still matches, and anchored on where each format names its tool, so other tools' SARIF and CycloneDX files, and files that only mention ShorStop, are still scanned (`TestIsOwnReportLeavesOtherFilesAlone`).
+- **The crawler stays format-agnostic:** it takes a `SkipContent func(head []byte) bool` hook, because `internal/report` imports `crawler` and the reverse import would be a cycle. Skipped files get their own counter, `Stats.Reports`, shown in the summary as "N ShorStop reports", so nothing disappears silently. That adds a field to the summary line; no test or documented output pinned its exact text.
+- Binary files never reach the hook.
+
+### Writing over the baseline regenerates it: `samePath` in `runScan`
+- **Problem:** with `baseline:` in `.shorstop.yaml`, `shorstop scan -f sarif -o .shorstop/baseline.sarif` applied the old baseline while writing the new one, so the new file held only the findings that were new: next time, everything looked new. The docs worked around it with `--baseline ""`.
+- **Fix:** when `--output` and the baseline are the same file, the baseline isn't applied for that run, and a note on stderr says so. Writing a report into the file you compare against can only mean regenerating it. Compared with `os.SameFile` when both exist, so `./x` and `x`, or a symlink, still match; otherwise by absolute path, which also covers the **first** run, when the configured baseline doesn't exist yet: that used to fail with "no such file", and now writes it.
+
+### Hybrid key exchange (v0.1.3): `Finding.Hybrid`
+- **Problem:** the config detector reports a hybrid group's two halves separately, so the X25519 in `X25519MLKEM768` was rated `QUANTUM_VULNERABLE`/high, and `Dedupe` merged it with a plain `X25519` fallback on the same line. A post-quantum audience would read that as ShorStop not understanding hybrids.
+- **Model:** `Finding.Hybrid` holds the hybrid's name on its classical half only. The config detector sets it for every group or SSH key exchange that pairs a classical algorithm with ML-KEM or sntrup761 (`inHybrid`), so new hybrids added to the tables are covered without another list.
+- **Rating:** a quantum-vulnerable algorithm with `Hybrid` set is `QUANTUM_SAFE`/info: the shared secret is derived from both halves and holds while the post-quantum half does. Only that case: a broken algorithm stays broken (`TestHybridHalf`).
+- **The plain fallback is still reported.** In `X25519MLKEM768:X25519`, clients without post-quantum support get plain X25519, a real harvest-now-decrypt-later exposure. So `Hybrid` is part of a finding's subject in `Dedupe`, and the CBOM gives the hybrid half its own component (`…:hybrid:X25519MLKEM768`, with a `shorstop:hybrid` property) instead of merging it with the plain curve. The inventory still shows X25519 in use, rated by how it's used. *Option rejected:* dropping the classical half altogether, which was simpler but would remove X25519 from the inventory.
+- *Option deferred:* modelling the hybrid itself as one CycloneDX algorithm with primitive `combiner`. Nothing reads that yet, and the two-component model already rates both uses correctly.
+- **Fingerprints don't change for any other finding:** `Hybrid` is added to the fingerprint only when set, so baselines made with v0.1.2 still match (`TestFingerprintUnchangedWithoutHybrid` pins a v0.1.2 fingerprint; checked against a real v0.1.2 baseline of the demo repository). Hybrid halves get new fingerprints, which is right: they were wrongly reported before.
+- Golden files show the field as a trailing `hybrid=` column only on lines that have it, so the change to the goldens is just the hybrid lines.
+- **README sample:** its original sample project wasn't kept, so it was recreated as `testdata/readme-sample` from what the README describes, and the README now shows that project's real output. The X25519 high finding it used to show was this bug.
+
 ---
 
 ## Open, not decided
 - ~~CI actions pinned to major tags~~: done, all workflows are pinned to commit SHAs (2026-11-03).
 - ~~Dependabot (or Renovate) to raise PRs for pinned action and Go module updates~~: done, `.github/dependabot.yml` (2026-11-16).
-- A "hybrid" flag so the classical half of `X25519MLKEM768` isn't rated as quantum-vulnerable.
+- ~~A "hybrid" flag so the classical half of `X25519MLKEM768` isn't rated as quantum-vulnerable~~: done in v0.1.3 (`Finding.Hybrid`).

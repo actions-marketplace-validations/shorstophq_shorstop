@@ -63,19 +63,22 @@ to change. Regenerate it when you deliberately accept new findings (or after
 renames), and review the diff like any other change:
 
 ```sh
-shorstop scan . --baseline "" --format sarif --output .shorstop/baseline.sarif
+shorstop scan . --format sarif --output .shorstop/baseline.sarif
 git diff --stat .shorstop/baseline.sarif
 ```
 
-{{< callout type="warning" >}}
-Keep the `--baseline ""`. If `.shorstop.yaml` sets `baseline:`, a plain scan
-leaves the baselined findings out of its output, and the regenerated file
-would record only the new ones. `--baseline ""` turns the baseline off for this
-one run, and keeps the rest of the configuration (excludes, custom and
-disabled rules), so the new baseline matches what CI will compare against.
+Writing over the baseline file means regenerating it, so ShorStop doesn't
+apply the baseline in that run (it says so), and the new file records every
+finding. The rest of `.shorstop.yaml` (excludes, custom and disabled rules)
+still applies, so the baseline matches what CI compares against.
+
+{{< callout type="info" >}}
+On v0.1.2 and earlier, add `--baseline ""` to that command. Without it, a
+`baseline:` set in `.shorstop.yaml` is applied while writing, and the new file
+holds only the findings that weren't in the old one.
 {{< /callout >}}
 
-ShorStop doesn't scan the baseline it's using or the file it's writing, so the
-algorithm names in a report's messages aren't reported as findings. Other
-reports left in the scanned directory *are* scanned: write them outside it, or
-add them to `exclude:`.
+ShorStop never scans its own reports (SARIF, CBOM or Markdown, recognised by
+their content, whatever they're called), so a baseline or an old report left
+in the repository doesn't produce findings of its own. The summary line counts
+them as skipped ShorStop reports.

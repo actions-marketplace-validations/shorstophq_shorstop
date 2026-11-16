@@ -36,7 +36,8 @@ disable: [generic-rsa-bits]      # turn a rule off for the whole repository
   replace the configured value; `--exclude` and `--rules` add to it.
 - **Mistakes are errors.** An unknown key or an unknown rule ID in `disable`
   stops the scan with exit code 2, so a typo can't silently do nothing.
-- ShorStop never scans its own config, rule, baseline or output files.
+- ShorStop never scans its own config, rule, baseline or output files, or
+  reports it wrote earlier (recognised by their content).
 
 ## Suppressing a finding
 

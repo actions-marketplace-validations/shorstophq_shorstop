@@ -68,7 +68,7 @@ go install github.com/shorstophq/shorstop/cmd/shorstop@latest
 shorstop scan .
 ```
 
-Output from a small sample project:
+Output from a small sample project ([`testdata/readme-sample`](testdata/readme-sample)):
 
 ```text
 CRITICAL · 2
@@ -81,26 +81,28 @@ CRITICAL · 2
     → Migrate to ML-KEM (FIPS 203) for key exchange and encryption, and ML-DSA (FIPS 204) for signatures; for TLS, enable X25519MLKEM768.
       app/keys.go:10   go-rsa-generate-key
 
-HIGH · 5
-  RSA · QUANTUM_VULNERABLE · 2 places
-    ...
+HIGH · 2
+  RSA · QUANTUM_VULNERABLE · 1 place
+    RSA is broken by Shor's algorithm; if it protects key exchange or encryption, data encrypted today can be recorded and decrypted later.
+    → Migrate to ML-KEM (FIPS 203) for key exchange and encryption, and ML-DSA (FIPS 204) for signatures; for TLS, enable X25519MLKEM768.
+      app/keys.go:6   go-rsa-import
   TLSv1.0 · BROKEN · 1 place
     TLSv1.0 is deprecated by RFC 8996 and rejected by modern clients and PCI DSS.
     → Allow only TLS 1.2 and 1.3.
       deploy/nginx.conf:2   tls-protocol-version
-  X25519 · QUANTUM_VULNERABLE · 1 place
-    ...
 
 LOW · 1
   pkg:pypi/pycryptodome · UNKNOWN · 1 place
-    ...
+    Dependency: A cryptographic library or object whose algorithms aren't known.
+    → Check which algorithms it is used with.
+      requirements.txt:1   dep-pypi-pycryptodome
 
-Scanned 4 files · 12 findings · 2 critical · 5 high · 1 low · 2 quantum-safe (skipped: ...) · 0 warnings
+Scanned 4 files · 10 findings · 2 critical · 2 high · 1 low · 3 quantum-safe (skipped: 0 ignored, 0 too large, 0 binary, 0 not regular, 0 failed, 0 ShorStop reports) · 0 warnings
 ```
 
 In this sample, `ssl_ciphers HIGH:!aNULL:!3DES` is correctly **not** reported, because `!3DES`
-disables 3DES. The `crypto/mlkem` import and the hybrid `X25519MLKEM768` TLS group count as
-**quantum-safe**, which shows migration progress rather than problems.
+disables 3DES. The `crypto/mlkem` import and the hybrid `X25519MLKEM768` TLS group (both of its
+halves) count as **quantum-safe**, which shows migration progress rather than problems.
 
 ## What it finds
 
@@ -237,7 +239,7 @@ disable: [generic-rsa-bits]      # turn a rule off for the whole repository
 
 Flags given on the command line override the file. Unknown keys and unknown rule IDs are
 errors, so a typo can't silently do nothing. ShorStop never scans its own config, rule,
-baseline or output files.
+baseline or output files, or reports it wrote earlier.
 
 ### Custom rules
 
@@ -270,8 +272,6 @@ Check a rule file without scanning anything: `shorstop rules list --rules .shors
   (`rsa := x; rsa.GenerateKey(...)`) is reported as a crypto call.
 - **OpenSSL cipher sets that depend on the build** (`HIGH`, `MEDIUM`, `DEFAULT`) aren't
   expanded, so `MEDIUM` on an old OpenSSL that still includes 3DES isn't caught.
-- **Hybrid key exchange:** in `X25519MLKEM768`, the X25519 half is reported as
-  quantum-vulnerable even though the hybrid protects it.
 - **Lockfiles over 2 MB** are skipped by default. Raise the limit with `--max-file-size`.
 - **Maven `${property}` versions and Gradle version catalogs** aren't resolved.
 

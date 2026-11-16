@@ -69,9 +69,13 @@ and the code that uses it is rated on its own findings.
 **A committed private key is `critical` whatever its algorithm.** Anyone who
 can read the repository has the key. Rotate it, then remove it from history.
 
-**Hybrid key exchange.** The TLS group `X25519MLKEM768` counts as quantum-safe.
-Its X25519 half is currently also reported as quantum-vulnerable; see
-[Known limitations](../limitations/).
+**Hybrid key exchange is quantum-safe, both halves.** In a hybrid such as the
+TLS group `X25519MLKEM768` or the SSH key exchange `mlkem768x25519-sha256`, the
+shared secret comes from both halves, so it holds as long as ML-KEM does. The
+classical half is listed as `QUANTUM_SAFE` too, as "X25519 in X25519MLKEM768".
+The same curve offered *on its own* is still `QUANTUM_VULNERABLE`: in
+`ssl_ecdh_curve X25519MLKEM768:X25519`, clients without post-quantum support
+fall back to plain X25519, and that fallback is reported.
 
 ## The CBOM's extra detail
 
