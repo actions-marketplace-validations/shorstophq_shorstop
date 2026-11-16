@@ -6,7 +6,7 @@
 #     security-events: write   # upload results to code scanning
 #   steps:
 #     - uses: actions/checkout@v7
-#     - uses: shorstophq/shorstop@v0.1.2
+#     - uses: shorstophq/shorstop@v0.1.3
 #
 # A composite action, not a Docker one: it runs on Linux, macOS and Windows
 # runners, starts in seconds, and installs a verified release binary.
@@ -44,7 +44,7 @@ inputs:
     description: Code scanning category, to keep several ShorStop runs (e.g. one per directory) apart.
     default: shorstop
   version:
-    description: ShorStop release to install, e.g. v0.1.2. "latest" is the newest full release (not a pre-release).
+    description: ShorStop release to install, e.g. v0.1.3. "latest" is the newest full release (not a pre-release).
     default: latest
   verify:
     description: Verify the release's checksums.txt with its keyless cosign signature before trusting the download.

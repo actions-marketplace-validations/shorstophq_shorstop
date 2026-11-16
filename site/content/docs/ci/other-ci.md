@@ -15,7 +15,7 @@ and checks it against the release's checksums before using it:
 
 ```sh {filename="install-shorstop.sh"}
 set -eu
-V=0.1.2
+V=0.1.3
 case "$(uname -m)" in x86_64|amd64) ARCH=amd64 ;; aarch64|arm64) ARCH=arm64 ;; *) echo "unsupported: $(uname -m)" >&2; exit 2 ;; esac
 base="https://github.com/shorstophq/shorstop/releases/download/v$V"
 curl -fsSLO "$base/shorstop_${V}_linux_${ARCH}.tar.gz"
@@ -61,12 +61,12 @@ Where the CI system runs containers directly, as a step rather than as a job's
 shell:
 
 ```sh
-docker run --rm -v "$PWD:/src:ro" ghcr.io/shorstophq/shorstop:v0.1.2 scan --fail-on high
+docker run --rm -v "$PWD:/src:ro" ghcr.io/shorstophq/shorstop:v0.1.3 scan --fail-on high
 ```
 
 The image runs as a non-root user and reads the mounted directory. To write a
 report, redirect standard output, since the mount is read-only:
 
 ```sh
-docker run --rm -v "$PWD:/src:ro" ghcr.io/shorstophq/shorstop:v0.1.2 scan --format sarif > shorstop.sarif
+docker run --rm -v "$PWD:/src:ro" ghcr.io/shorstophq/shorstop:v0.1.3 scan --format sarif > shorstop.sarif
 ```

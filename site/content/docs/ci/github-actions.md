@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest   # macOS and Windows runners work too
     steps:
       - uses: actions/checkout@v7
-      - uses: shorstophq/shorstop@v0.1.2
+      - uses: shorstophq/shorstop@v0.1.3
 ```
 
 It's a composite action, not a container one, so it runs on Linux, macOS and
@@ -41,7 +41,7 @@ All optional, under `with:`.
 | `upload-sarif` | `true` | set `false` to only write the report |
 | `sarif-file` | runner temp directory | where to write the SARIF report |
 | `category` | `shorstop` | code scanning category, to keep several runs (one per directory, say) apart |
-| `version` | `latest` | ShorStop release to install, e.g. `v0.1.2`. `latest` is the newest full release |
+| `version` | `latest` | ShorStop release to install, e.g. `v0.1.3`. `latest` is the newest full release |
 | `verify` | `true` | verify the release's signed checksums before using the download |
 | `install` | `true` | set `false` to use a `shorstop` already on `PATH` |
 
@@ -58,7 +58,7 @@ All optional, under `with:`.
 ### Fail pull requests on new high-severity findings
 
 ```yaml
-      - uses: shorstophq/shorstop@v0.1.2
+      - uses: shorstophq/shorstop@v0.1.3
         with:
           fail-on: high
           baseline: .shorstop/baseline.sarif
@@ -71,11 +71,11 @@ See [Baselines](../baselines/) for creating the baseline file.
 Give each run its own `category`, or the second upload replaces the first:
 
 ```yaml
-      - uses: shorstophq/shorstop@v0.1.2
+      - uses: shorstophq/shorstop@v0.1.3
         with:
           path: services/api
           category: shorstop-api
-      - uses: shorstophq/shorstop@v0.1.2
+      - uses: shorstophq/shorstop@v0.1.3
         with:
           path: services/web
           category: shorstop-web
@@ -84,7 +84,7 @@ Give each run its own `category`, or the second upload replaces the first:
 ### Keep the report as an artifact
 
 ```yaml
-      - uses: shorstophq/shorstop@v0.1.2
+      - uses: shorstophq/shorstop@v0.1.3
         id: shorstop
       - uses: actions/upload-artifact@v7
         with:
@@ -94,13 +94,13 @@ Give each run its own `category`, or the second upload replaces the first:
 
 ## Pinning
 
-`@v0.1.2` is a tag. To pin exactly, use the commit SHA with the version as a
+`@v0.1.3` is a tag. To pin exactly, use the commit SHA with the version as a
 comment, and set `version` so the binary is pinned too:
 
 ```yaml
-      - uses: shorstophq/shorstop@<commit-sha> # v0.1.2
+      - uses: shorstophq/shorstop@<commit-sha> # v0.1.3
         with:
-          version: v0.1.2
+          version: v0.1.3
 ```
 
 Dependabot updates both the SHA and the comment.

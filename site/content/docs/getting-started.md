@@ -37,7 +37,7 @@ by the repository's release workflow, so there's no key to trust, only the
 workflow's identity:
 
 ```sh
-V=0.1.2 OS=linux ARCH=amd64   # or OS=darwin, ARCH=arm64
+V=0.1.3 OS=linux ARCH=amd64   # or OS=darwin, ARCH=arm64
 for f in "shorstop_${V}_${OS}_${ARCH}.tar.gz" checksums.txt checksums.txt.sigstore.json; do
   curl -fsSLO "https://github.com/shorstophq/shorstop/releases/download/v$V/$f"
 done
@@ -49,7 +49,7 @@ tar -xzf "shorstop_${V}_${OS}_${ARCH}.tar.gz"
 ```
 
 The container image is signed the same way:
-`cosign verify ghcr.io/shorstophq/shorstop:v0.1.2` with the same two
+`cosign verify ghcr.io/shorstophq/shorstop:v0.1.3` with the same two
 `--certificate-*` flags. Every archive also has an SBOM (`.sbom.json`).
 {{< /tab >}}
 
