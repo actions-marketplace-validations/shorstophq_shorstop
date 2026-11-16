@@ -1344,6 +1344,13 @@ The `standard` set plus `errorlint`, `misspell`, `unconvert`, `gocritic`. `gosec
 - **`config.yml` turns off blank issues** and adds a link for reporting vulnerabilities privately, so security reports aren't filed as public issues. *Cost:* someone with an issue that fits no form has to pick the closest one.
 - **Labels `rule`, `detection`, `bug`.** GitHub silently skips labels that don't exist, so `rule` and `detection` are created in the repository settings.
 
+### `docs/demo.tape` and `docs/demo.gif` (Phase 7)
+- **Recorded with vhs from a script in the repository**, not a screen capture, so it can be re-recorded with one command when the output changes, and the README never shows output the current version wouldn't print.
+- **It scans the public demo repository**, cloned during the hidden setup, rather than a fixture: what viewers see is what they get by trying it on that repository.
+- **`shorstop scan | head -n 29`** so the critical findings stay on screen; the full 80-line report scrolls them out of view within a frame. Piping drops the colours, since the table only colours a terminal; a `--color` flag only for the GIF isn't worth adding.
+- About 16 s and 340 KB, 1500×760 so no line wraps. Shows three things only: the table, `--fail-on` failing CI, and a CBOM.
+- **Docker recipe in the header** for machines where `brew install vhs` builds `cmake` and `ttyd` from source (Intel Macs). Files are copied in with `docker cp` rather than mounted, so no Docker Desktop file sharing has to be configured. The pinned `vhs:v0.10.0` image is Debian bookworm and lacks `git` and `jq`; apt needs `--allow-releaseinfo-change` since `stable` moved to trixie.
+
 ### `LICENSE`
 Apache 2.0, as the plan specifies. Downloaded verbatim from apache.org (sha256 `cfc7749b…3d30`), not retyped. Chosen over MIT for its explicit patent grant, which matters for a crypto tool that companies will adopt.
 

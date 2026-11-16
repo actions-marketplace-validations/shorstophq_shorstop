@@ -10,6 +10,8 @@ It reports what it finds as a **CycloneDX 1.6 CBOM** (Cryptographic Bill of Mate
 **SARIF** for GitHub code scanning, Markdown, or a terminal table. Each finding comes with a
 rating and the post-quantum replacement to migrate to (ML-KEM, ML-DSA, SLH-DSA).
 
+![ShorStop scanning a demo service: three critical findings (3DES, MD5, RSA-1024) and ten quantum-vulnerable ones, failing CI with --fail-on critical, and writing a CycloneDX CBOM](docs/demo.gif)
+
 The name comes from Shor's algorithm, the quantum algorithm that breaks RSA and ECC.
 
 > **Status: early release (`v0.x`).** The scanner, rules and output formats work and are
