@@ -429,7 +429,7 @@ Shared helpers: lines without `\r`, and byte offset → 1-based line.
 - **`npmLock`:** lockfile v2/v3 `packages` keyed by install path (name = after the last `node_modules/`, so nested copies are found); the root `""` entry and workspace paths are skipped. v1 is a nested `dependencies` tree, walked recursively.
 - **`yarnLock`:** classic and Berry. An entry header at column 0 lists specs; the name is taken before `@npm:` (Berry) or before the last `@` (`@scope/name@^1` keeps its scope). Then the indented `version` line is read, quoted (classic) or `version:` (Berry).
 - **`pnpmLock`:** YAML keys under `packages`, with the node's line number. Three key formats are supported: v9 `name@1.2.3`, v6 `/name@1.2.3(peer)`, and v5 `/name/1.2.3_peer@ver`. **v5 is checked first**, because its peer suffix contains an `@` of its own. The first version split `/openpgp/5.11.0_react@18.2.0` at that `@`, and the fixture caught it.
-- **`sortDeps`** sorts by line then name and drops exact duplicates.
+- **`sortDeps`** sorts by line, then name, then version, and drops exact duplicates. *Correction (Phase 6):* it first stopped at the name. One package listed with different versions (in `dependencies` and `devDependencies`, or nested twice in a v1 lockfile) gets the same line for each, and `slices.SortFunc` doesn't keep ties in their input order once a slice is longer than 12, so the map's random order showed in the output. `FuzzDetect` found it in CI; `TestSamePackageTwiceIsDeterministic` keeps it fixed. With the version as the third key every field of `dep` is compared, so the order is total.
 
 ### `python.go`
 - **`requirement`** (PEP 508): the distribution name, plus a version only for an exact `==` pin (not `===`, not `==3.*`).
@@ -530,7 +530,7 @@ The CycloneDX 1.6 types for a CBOM. **Public** (`pkg/`, not `internal/`), as the
   - Each place it was seen is an `evidence.occurrences` entry. Go's source tree (2,349 findings) becomes a 1.3 MB CBOM.
 - **Committed private keys are not grouped:** each is its own component, with `state: "compromised"`, CycloneDX's own word for a key anyone with the repository now holds. Two keys of the same type are two secrets to rotate.
 - **Readable, stable bom-refs** (`crypto:algorithm:RSA-2048:unknown`, `crypto:protocol:tls:TLSv1.0`, `pkg:npm/node-rsa`), derived from the asset, never from scan order, so the backend can diff two scans by ref (the plan's requirement). *Option rejected:* hashing everything, as the plan suggested. Readable refs are just as stable and can be debugged by eye. Hashes are used only where the identity is long or private: certificates (subject, issuer, dates) and private keys (file and line).
-- **Deterministic output** for given options: components sorted by ref, occurrences by location, rule lists sorted. `TestCBOMIsDeterministic` reverses the findings and requires byte-identical output.
+- **Deterministic output** for given options: components sorted by ref, occurrences by location, line, context and finally `bom-ref` (Phase 6: so even two occurrences that agree on everything else have a fixed order), rule lists sorted. `TestCBOMIsDeterministic` reverses the findings and requires byte-identical output.
 - `metadata.component` is the scanned project (`bom-ref: project`), and `dependencies` says the project depends on each library, and what each library provides.
 
 ### `func WriteCBOM(w, bom)` / `func NewSerialNumber()`
@@ -907,8 +907,9 @@ Returns subexpression *i*'s text from a `FindAllSubmatchIndex` location, if it t
 
 ### `func (res *Result) sort()`
 - **Decisions & tradeoffs:**
-  - Findings are sorted by file, then line, then rule ID, then detector. The last key breaks ties when two detectors flag the same line with the same rule, so the order is fully deterministic.
-  - `slices.SortFunc` with `cmp.Or` (Go 1.22+) instead of `sort.Slice`. It's type-safe (no `interface{}`), faster, and multi-key comparison reads as one expression.
+  - Findings are sorted by file, then line, then rule ID, then detector. The last key breaks ties when two detectors flag the same line with the same rule.
+  - *Correction (Phase 6):* that left real ties: one rule finding several things on one line (`tls-cipher` finds 3DES, AES-128 and HMAC-SHA-1 in one `ssl_ciphers` line; `dep-npm-node-forge` finds three versions on one `package.json` line). Workers finish in random order, and an unstable sort put those ties in a different order from run to run, which SARIF and the table keep. **Now a stable sort** (`slices.SortStableFunc`): ties are always in the same file, and within a file the detectors' own order is deterministic (after the `sortDeps` fix). Checked: five scans of `testdata/fixtures` give byte-identical SARIF. *Option rejected:* comparing every remaining `Finding` field. It would be longer and would silently depend on each new field being added to the list.
+  - `slices.SortStableFunc` with `cmp.Or` (Go 1.22+) instead of `sort.Slice`. It's type-safe (no `interface{}`), faster, and multi-key comparison reads as one expression.
   - Errors use a **stable** sort because one path can have two errors (a directory error and a file error). Stable keeps their walk order.
 
 ---

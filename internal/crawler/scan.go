@@ -288,9 +288,14 @@ func (res *Result) add(r fileResult) {
 	}
 }
 
+// sort puts the result in a fixed order, whatever order the workers
+// finished in. Findings are sorted stably: ties (one rule finding several
+// algorithms or package versions on one line) are always in the same file,
+// and within a file the detectors' own order is deterministic. An unstable
+// sort would order those ties differently from run to run.
 func (res *Result) sort() {
 	slices.Sort(res.Files)
-	slices.SortFunc(res.Findings, func(a, b detect.Finding) int {
+	slices.SortStableFunc(res.Findings, func(a, b detect.Finding) int {
 		return cmp.Or(
 			cmp.Compare(a.File, b.File),
 			cmp.Compare(a.Line, b.Line),

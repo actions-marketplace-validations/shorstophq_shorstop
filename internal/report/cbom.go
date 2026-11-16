@@ -190,7 +190,7 @@ func (e *entry) component() cbom.Component {
 	if len(e.occs) > 0 {
 		occs := slices.Clone(e.occs)
 		slices.SortFunc(occs, func(a, b cbom.Occurrence) int {
-			return cmp.Or(cmp.Compare(a.Location, b.Location), cmp.Compare(a.Line, b.Line), cmp.Compare(a.AdditionalContext, b.AdditionalContext))
+			return cmp.Or(cmp.Compare(a.Location, b.Location), cmp.Compare(a.Line, b.Line), cmp.Compare(a.AdditionalContext, b.AdditionalContext), cmp.Compare(a.BOMRef, b.BOMRef))
 		})
 		// Identical findings (same file, rule and line text) share a
 		// fingerprint; number them so every bom-ref is unique. Numbering after
