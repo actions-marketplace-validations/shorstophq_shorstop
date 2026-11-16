@@ -1,0 +1,60 @@
+# Records ShorStop's adoption numbers once a day (scripts/metrics) and commits
+# them to the "metrics" branch, which holds only the CSV files and a README
+# with the latest numbers: https://github.com/shorstophq/shorstop/tree/metrics
+#
+# Daily, because GitHub keeps traffic (views, clones, referrers) for only 14
+# days. Traffic needs the TRAFFIC_TOKEN secret: a fine-grained token for this
+# repository with "Administration: read-only". Without it, stars, forks and
+# release downloads are still recorded.
+name: metrics
+on:
+  schedule:
+    - cron: "17 6 * * *"   # 06:17 UTC daily; off the hour, when Actions is busiest
+  workflow_dispatch:
+
+permissions:
+  contents: write   # push to the metrics branch
+
+concurrency:
+  group: metrics
+  cancel-in-progress: false
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      # The metrics branch shares no history with main. Its first run creates
+      # it as an orphan branch.
+      - name: Check out the metrics branch
+        run: |
+          if git ls-remote --exit-code --heads origin metrics >/dev/null; then
+            git fetch --depth 1 origin metrics
+            git worktree add --detach metrics-data FETCH_HEAD
+          else
+            git worktree add --orphan -b metrics metrics-data
+          fi
+
+      - name: Record
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          TRAFFIC_TOKEN: ${{ secrets.TRAFFIC_TOKEN }}
+        run: go run ./scripts/metrics -dir metrics-data
+
+      - name: Commit
+        working-directory: metrics-data
+        run: |
+          cat README.md >> "$GITHUB_STEP_SUMMARY"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No change since the last run."
+            exit 0
+          fi
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -q -m "Metrics for $(date -u +%F)"
+          git push origin HEAD:refs/heads/metrics
