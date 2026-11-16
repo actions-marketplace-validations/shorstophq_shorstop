@@ -1331,6 +1331,12 @@ The `standard` set plus `errorlint`, `misspell`, `unconvert`, `gocritic`. `gosec
 - **Scope is spelled out.** In scope: crashes, hangs, unbounded memory or path escape on crafted input (the reason for the fuzz tests); injection through report fields; and the release chain (signatures, checksums, image, cask, the Action's install script). Out of scope: missed detections and severity disagreements, which are normal issues for a static scanner with documented limitations. Saying this up front saves reporters and maintainers a round trip.
 - **No promised response time.** A one-person project shouldn't publish an SLA it can't keep; one can be added once there's a team.
 
+### `CONTRIBUTING.md`
+- **Issue first only for changes that are hard to undo:** new detectors, output formats, flags and severity changes. Rules and small fixes go straight to a PR, since a rule's `examples` and fixture make it easy to review on its own.
+- **It states the rules the code already enforces** rather than inventing new ones: permanent rule IDs (from the `rules.yaml` header), regex `examples` (rejected by the loader), golden files via `-update`, deterministic output (the fuzz failure fixed in `fb9b5ce`), per-function entries in this file, and few dependencies.
+- **No CLA or DCO sign-off.** Apache 2.0 section 5 already licenses contributions under the project's license unless stated otherwise, so the file says that instead of adding a signing step that would put off small contributors. It can be added later if a company backs the project.
+- Every command in it was run before it was written down (`make test`, `make lint`, `-update` on all six packages leaves the goldens unchanged).
+
 ### `LICENSE`
 Apache 2.0, as the plan specifies. Downloaded verbatim from apache.org (sha256 `cfc7749b…3d30`), not retyped. Chosen over MIT for its explicit patent grant, which matters for a crypto tool that companies will adopt.
 
