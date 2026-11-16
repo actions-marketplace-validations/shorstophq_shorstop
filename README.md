@@ -14,6 +14,9 @@ rating and the post-quantum replacement to migrate to (ML-KEM, ML-DSA, SLH-DSA).
 
 The name comes from Shor's algorithm, the quantum algorithm that breaks RSA and ECC.
 
+**Documentation:** [shorstophq.github.io/shorstop](https://shorstophq.github.io/shorstop/): CI
+recipes, configuration, how findings are rated, the CBOM, and every rule.
+
 > **Status: early release (`v0.x`).** The scanner, rules and output formats work and are
 > tested. Expect rule IDs and output details to change before `v1.0`.
 
@@ -179,7 +182,7 @@ Options go under `with:`. All are optional:
 | `upload-sarif` | `true` | set `false` to only write the report |
 | `sarif-file` | runner temp dir | where to write the report; also the `sarif-file` output |
 | `category` | `shorstop` | code scanning category, to keep several runs apart |
-| `version` | `latest` | ShorStop release to install, e.g. `v0.1.0` |
+| `version` | `latest` | ShorStop release to install, e.g. `v0.1.2` |
 | `verify` | `true` | check the release's Sigstore signature before using it |
 
 To pin exactly, use a commit SHA (`uses: shorstophq/shorstop@<sha> # v0.1.2`) and set

@@ -44,7 +44,7 @@ inputs:
     description: Code scanning category, to keep several ShorStop runs (e.g. one per directory) apart.
     default: shorstop
   version:
-    description: ShorStop release to install, e.g. v0.1.0. "latest" is the newest full release (not a pre-release).
+    description: ShorStop release to install, e.g. v0.1.2. "latest" is the newest full release (not a pre-release).
     default: latest
   verify:
     description: Verify the release's checksums.txt with its keyless cosign signature before trusting the download.
