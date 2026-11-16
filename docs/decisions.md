@@ -1320,12 +1320,31 @@ The `standard` set plus `errorlint`, `misspell`, `unconvert`, `gocritic`. `gosec
 
 ---
 
+### `.github/dependabot.yml`
+- **Two ecosystems: `github-actions` and `gomod`.** Dependabot understands SHA pins with a version comment and updates both, which removes the cost recorded under `ci.yml` (manual updates). No `docker` entry: the Dockerfile is `FROM scratch`, so there's no base image to track.
+- **Weekly, with one group per ecosystem**, so a busy week gives two PRs rather than one per action or module. *Tradeoff:* one bad update holds back the rest of its group until it's split out by hand; for a handful of pinned actions and few modules that's cheaper than reviewing many small PRs.
+- **Commit prefixes `CI` and `Deps`** to match the repository's plain-sentence commit style instead of Dependabot's default `Bump ...` headers.
+
+### `SECURITY.md`
+- **Only the latest release is supported** while ShorStop is 0.x. Backporting fixes to older 0.x lines costs more than it's worth before 1.0.
+- **Reports go through GitHub private vulnerability reporting**, the same link the README already used, so there's one channel and no email address to publish. The repository owner has to enable the feature in the repository settings.
+- **Scope is spelled out.** In scope: crashes, hangs, unbounded memory or path escape on crafted input (the reason for the fuzz tests); injection through report fields; and the release chain (signatures, checksums, image, cask, the Action's install script). Out of scope: missed detections and severity disagreements, which are normal issues for a static scanner with documented limitations. Saying this up front saves reporters and maintainers a round trip.
+- **No promised response time.** A one-person project shouldn't publish an SLA it can't keep; one can be added once there's a team.
+
 ### `LICENSE`
 Apache 2.0, as the plan specifies. Downloaded verbatim from apache.org (sha256 `cfc7749b…3d30`), not retyped. Chosen over MIT for its explicit patent grant, which matters for a crypto tool that companies will adopt.
 
 ---
 
+## Benchmark: Kubernetes source (Phase 6, 2026-11-16)
+- **Setup:** the v0.1.2 release binary (`darwin_amd64`) on an Intel i9-9880H (8 physical cores, 16 threads), scanning a shallow clone of `kubernetes/kubernetes` at `96d09445` (31,968 tracked files, 406 MB). One warm-up run, then three runs each at `GOMAXPROCS=8 --workers 8` and at 16 (the default, `NumCPU`). JSON output to a file. Warm file cache; a cold-cache run needs `sudo purge` and wasn't measured.
+- **Result:** 25,456 files scanned, 998 findings. **~1.0 s wall time on 8 cores** (0.96–1.14 s) against the plan's target of under 30 s. 16 threads were no faster (0.97–1.07 s): hyperthreads share each core's execution units, and system time (reading files) is as large as user time. Peak memory 32–38 MB.
+- **Output is deterministic at this scale:** the six JSON reports are identical apart from the CBOM `timestamp` and `serialNumber`, which are meant to change per run, and three SARIF runs are byte-identical.
+- **Consequences:** the "revisit if benchmarks show…" items in the crawler (`sync.Pool` buffers, a parallel walker) stay closed: neither would matter at 1 s. `--workers` keeps its `NumCPU` default, since 16 is no slower than 8.
+
+---
+
 ## Open, not decided
 - ~~CI actions pinned to major tags~~: done, all workflows are pinned to commit SHAs (2026-11-03).
-- Dependabot (or Renovate) to raise PRs for pinned action and Go module updates.
+- ~~Dependabot (or Renovate) to raise PRs for pinned action and Go module updates~~: done, `.github/dependabot.yml` (2026-11-16).
 - A "hybrid" flag so the classical half of `X25519MLKEM768` isn't rated as quantum-vulnerable.

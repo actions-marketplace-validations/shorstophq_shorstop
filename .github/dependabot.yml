@@ -1,0 +1,25 @@
+# Dependabot raises PRs when a pinned dependency has a new release.
+# Every action in the workflows is pinned to a commit SHA with the release as
+# a comment (`# v7.0.1`); Dependabot updates both. The Dockerfile is FROM
+# scratch, so there is no base image to track.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: "CI"
+
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      go-modules:
+        patterns: ["*"]
+    commit-message:
+      prefix: "Deps"
