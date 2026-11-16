@@ -476,3 +476,57 @@ func TestOwnReportsAreNotScanned(t *testing.T) {
 		t.Errorf("before the reports:\n%s\nafter:\n%s", before, after)
 	}
 }
+
+// TestRegeneratingTheConfiguredBaseline: with baseline: in .shorstop.yaml,
+// writing a scan over the baseline file must record every finding, not
+// only the new ones.
+func TestRegeneratingTheConfiguredBaseline(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name, content string) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("app.py", "import hashlib\nhashlib.md5(b)\n")
+	write(".shorstop.yaml", "version: 1\nbaseline: base.sarif\n")
+	base := filepath.Join(dir, "base.sarif")
+	results := func() int {
+		t.Helper()
+		b, err := os.ReadFile(base)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var s struct {
+			Runs []struct{ Results []json.RawMessage } `json:"runs"`
+		}
+		if err := json.Unmarshal(b, &s); err != nil {
+			t.Fatal(err)
+		}
+		return len(s.Runs[0].Results)
+	}
+	scan := func(args ...string) (int, string) {
+		var stdout, stderr bytes.Buffer
+		code := run(context.Background(), append([]string{"scan", dir}, args...), &stdout, &stderr)
+		return code, stderr.String()
+	}
+
+	// The first baseline: the configured file doesn't exist yet, so it's
+	// written rather than loaded.
+	if code, stderr := scan("-f", "sarif", "-o", base); code != exitOK {
+		t.Fatalf("code %d: %s", code, stderr)
+	}
+	write("more.py", "import hashlib\nhashlib.sha1(x)\n")
+	// Regenerating, spelled differently from the config, still matches.
+	code, stderr := scan("-f", "sarif", "-o", filepath.Join(dir, ".", "base.sarif"))
+	if code != exitOK || !strings.Contains(stderr, "baseline isn't applied") {
+		t.Fatalf("code %d: %s", code, stderr)
+	}
+	if n := results(); n != 2 {
+		t.Errorf("regenerated baseline has %d results, want both findings (2)", n)
+	}
+	// And it's then applied as usual: nothing new.
+	if code, stderr := scan("--fail-on", "low"); code != exitOK {
+		t.Errorf("after regenerating: code %d: %s", code, stderr)
+	}
+}

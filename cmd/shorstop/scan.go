@@ -107,6 +107,14 @@ func runScan(ctx context.Context, o *scanOptions, stdout, stderr io.Writer) erro
 	if !slices.Contains(failOnLevels, o.failOn) {
 		return fmt.Errorf("unknown --fail-on %q (want one of: %s)", o.failOn, strings.Join(failOnLevels, ", "))
 	}
+	// Writing the output over the baseline file means regenerating the
+	// baseline. Applying it would leave every known finding out, and the new
+	// baseline would hold only findings that are new: a near-empty file
+	// that makes all of them look new next time.
+	if o.baseline != "" && o.output != "" && samePath(o.baseline, o.output) {
+		fmt.Fprintf(stderr, "shorstop: --output is the baseline file, so the baseline isn't applied: writing every finding to %s\n", o.output)
+		o.baseline = ""
+	}
 	var base *baseline.Baseline
 	if o.baseline != "" {
 		if base, err = baseline.Load(o.baseline); err != nil {
@@ -317,4 +325,18 @@ func builtinIDs() map[string]string {
 		m[id] = config.Name
 	}
 	return m
+}
+
+// samePath reports whether a and b name the same file: the same file on disk
+// if both exist (so a symlink or a different spelling still matches), else
+// the same absolute path.
+func samePath(a, b string) bool {
+	ai, errA := os.Stat(a)
+	bi, errB := os.Stat(b)
+	if errA == nil && errB == nil {
+		return os.SameFile(ai, bi)
+	}
+	absA, errA := filepath.Abs(a)
+	absB, errB := filepath.Abs(b)
+	return errA == nil && errB == nil && absA == absB
 }
