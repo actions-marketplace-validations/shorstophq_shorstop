@@ -8,6 +8,7 @@ exclude:
   - internal/rules/rules.yaml # the rule pack names every algorithm it detects
   - docs/                     # the decision log discusses algorithms by name
   - README.md                 # usage examples name algorithms and commands
+  - site/                     # the docs site, same reason
 disable:
   # Name-only rules: here they match the detectors' own tables of names.
   - generic-3des

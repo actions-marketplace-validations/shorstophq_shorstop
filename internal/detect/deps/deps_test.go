@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/shorstophq/shorstop/internal/detect"
+	"github.com/shorstophq/shorstop/internal/detect/detecttest"
 	"github.com/shorstophq/shorstop/internal/rules"
 )
 
@@ -179,5 +180,42 @@ func TestMalformed(t *testing.T) {
 		if err == nil || len(found) != 0 {
 			t.Errorf("%s: got %v, %v; want an error and no findings", name, found, err)
 		}
+	}
+}
+
+// TestSamePackageTwiceIsDeterministic: one package listed with different
+// versions in dependencies, devDependencies and peerDependencies gets the
+// same line for each, and map iteration order used to decide their order
+// in the output. FuzzDetect found it; it needs more than 12 entries,
+// because Go's sort keeps ties in place for short slices.
+func TestSamePackageTwiceIsDeterministic(t *testing.T) {
+	var b strings.Builder
+	b.WriteString(`{"dependencies":{"node-forge":"1.0.0"`)
+	for i := range 20 {
+		fmt.Fprintf(&b, `,"p%d":"1"`, i)
+	}
+	b.WriteString(`},"devDependencies":{"node-forge":"2.0.0"`)
+	for i := range 20 {
+		fmt.Fprintf(&b, `,"q%d":"1"`, i)
+	}
+	b.WriteString(`},"peerDependencies":{"node-forge":"3.0.0"}}`)
+	d := builtin(t)
+	for range 50 {
+		detecttest.Check(t, d, detecttest.File("package.json", []byte(b.String())))
+		if t.Failed() {
+			return
+		}
+	}
+	found, err := d.Detect(context.Background(), detect.File{Path: "package.json", Content: []byte(b.String())})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var purls []string
+	for _, f := range found {
+		purls = append(purls, f.PURL)
+	}
+	want := []string{"pkg:npm/node-forge@1.0.0", "pkg:npm/node-forge@2.0.0", "pkg:npm/node-forge@3.0.0"}
+	if !slices.Equal(purls, want) {
+		t.Errorf("PURLs = %v; want %v", purls, want)
 	}
 }

@@ -1,0 +1,43 @@
+name: Missed detection, false positive or wrong severity
+description: ShorStop missed something, reported something that isn't there, or rated it wrongly.
+title: ""
+labels: ["detection"]
+body:
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What went wrong?
+      options:
+        - It missed something (false negative)
+        - It reported something that isn't there (false positive)
+        - The algorithm, key size or severity is wrong
+    validations:
+      required: true
+  - type: textarea
+    id: input
+    attributes:
+      label: The smallest input that shows it
+      description: A few lines of code, config or lockfile, with the file name (the extension decides which rules run). Please strip anything private.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: What ShorStop reported
+      description: The relevant lines of output, including the rule ID if there is one. Leave empty if it reported nothing.
+      render: text
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `shorstop version`.
+      placeholder: shorstop v0.1.3
+    validations:
+      required: true

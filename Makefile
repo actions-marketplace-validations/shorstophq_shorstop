@@ -2,7 +2,7 @@ VERSION ?= v0.0.1
 BIN     := bin/shorstop
 LDFLAGS := -X main.version=$(VERSION)
 
-.PHONY: build test lint bench fuzz release-snapshot clean
+.PHONY: build test lint bench fuzz release-snapshot docs docs-serve clean
 
 build:
 	CGO_ENABLED=0 go build -trimpath -ldflags "$(LDFLAGS)" -o $(BIN) ./cmd/shorstop
@@ -37,5 +37,17 @@ release-snapshot:
 	@command -v goreleaser >/dev/null || { echo "goreleaser not installed: go install github.com/goreleaser/goreleaser/v2@latest"; exit 1; }
 	goreleaser release --snapshot --clean --skip=sign,sbom
 
+# Docs site (site/, Hugo + Hextra). The rules reference is generated from the
+# code first. Needs hugo >= 0.146 on PATH; CI pins the version in pages.yml.
+docs:
+	@command -v hugo >/dev/null || { echo "hugo not installed: https://gohugo.io/installation/"; exit 1; }
+	go run ./scripts/rulesdoc > site/content/docs/rules.md
+	hugo --source site --gc --minify
+
+docs-serve:
+	@command -v hugo >/dev/null || { echo "hugo not installed: https://gohugo.io/installation/"; exit 1; }
+	go run ./scripts/rulesdoc > site/content/docs/rules.md
+	hugo server --source site
+
 clean:
-	rm -rf bin dist
+	rm -rf bin dist site/public site/resources

@@ -1,6 +1,7 @@
 package deps
 
 import (
+	"cmp"
 	"encoding/json"
 	"errors"
 	"slices"
@@ -177,14 +178,17 @@ func pnpmLock(content []byte) ([]dep, error) {
 	return out, nil
 }
 
-// sortDeps orders deps by line, then name, so map iteration order never
-// shows in the output.
+// sortDeps orders deps by line, then name, then version, so map iteration
+// order never shows in the output. The version matters: one package can be
+// listed twice with different versions (in dependencies and
+// devDependencies, or nested in a v1 lockfile) and both get the same line,
+// and SortFunc doesn't keep ties in their input order. Found by FuzzDetect.
 func sortDeps(ds []dep) []dep {
 	slices.SortFunc(ds, func(a, b dep) int {
 		if a.line != b.line {
 			return a.line - b.line
 		}
-		return strings.Compare(a.name, b.name)
+		return cmp.Or(strings.Compare(a.name, b.name), strings.Compare(a.version, b.version))
 	})
 	return slices.CompactFunc(ds, func(a, b dep) bool { return a == b })
 }

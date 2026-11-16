@@ -6,7 +6,7 @@
 #     security-events: write   # upload results to code scanning
 #   steps:
 #     - uses: actions/checkout@v7
-#     - uses: shorstophq/shorstop@v0.1.1
+#     - uses: shorstophq/shorstop@v0.1.3
 #
 # A composite action, not a Docker one: it runs on Linux, macOS and Windows
 # runners, starts in seconds, and installs a verified release binary.
@@ -44,7 +44,7 @@ inputs:
     description: Code scanning category, to keep several ShorStop runs (e.g. one per directory) apart.
     default: shorstop
   version:
-    description: ShorStop release to install, e.g. v0.1.0. "latest" is the newest full release (not a pre-release).
+    description: ShorStop release to install, e.g. v0.1.3. "latest" is the newest full release (not a pre-release).
     default: latest
   verify:
     description: Verify the release's checksums.txt with its keyless cosign signature before trusting the download.
@@ -71,7 +71,7 @@ runs:
     # text with ${{ }}, so an input can't inject shell commands.
     - name: Install cosign
       if: inputs.install == 'true' && inputs.verify == 'true'
-      uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+      uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
 
     - name: Install ShorStop
       id: install

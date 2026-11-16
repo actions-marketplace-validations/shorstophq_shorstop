@@ -41,6 +41,7 @@ type Finding struct {
 	Primitive    string       // one of rules.Primitives (CycloneDX names), or "" if unknown
 	KeySize      int          // 0 if unknown
 	ParameterSet string       // a named parameter set such as "ML-DSA-65", or ""
+	Hybrid       string       // classical half of a hybrid key exchange: the hybrid's name, e.g. "X25519MLKEM768"; else ""
 	Mode         string       // CBC, GCM, ECB ...
 	AssetType    string       // CycloneDX assetType; "" means AssetAlgorithm
 	MaterialType string       // AssetMaterial only: MaterialPrivateKey or MaterialPublicKey

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/shorstophq/shorstop/internal/detect"
@@ -10,6 +11,7 @@ import (
 type algo struct {
 	alg, prim, mode, param string
 	bits                   int
+	hybrid                 string // see detect.Finding.Hybrid
 }
 
 // tlsVersions is every TLS/SSL version, oldest first.
@@ -275,7 +277,8 @@ func groupList(v string) []algo {
 			continue
 		}
 		tok = strings.TrimLeft(tok, "?*") // OpenSSL 3.5: "?" optional, "*" key share
-		out = append(out, groupAlgos[strings.ToUpper(tok)]...)
+		name := strings.ToUpper(tok)
+		out = append(out, inHybrid(groupAlgos[name], name)...)
 	}
 	return out
 }
@@ -310,6 +313,24 @@ var groupAlgos = map[string][]algo{
 	"FFDHE4096":          {{alg: "DH", prim: "key-agree", bits: 4096}},
 	"FFDHE6144":          {{alg: "DH", prim: "key-agree", bits: 6144}},
 	"FFDHE8192":          {{alg: "DH", prim: "key-agree", bits: 8192}},
+}
+
+// inHybrid marks the classical halves of a hybrid scheme's algorithms with
+// the scheme's name, so they're rated as protected by the post-quantum half
+// (see detect.Finding.Hybrid). as has a post-quantum half exactly when the
+// scheme is a hybrid; anything else is returned unchanged.
+func inHybrid(as []algo, name string) []algo {
+	pq := slices.ContainsFunc(as, func(a algo) bool { return a.alg == "ML-KEM" || a.alg == "sntrup761" })
+	if !pq || len(as) < 2 {
+		return as
+	}
+	out := slices.Clone(as)
+	for i := range out {
+		if out[i].alg != "ML-KEM" && out[i].alg != "sntrup761" {
+			out[i].hybrid = name
+		}
+	}
+	return out
 }
 
 // splitAny splits s at any of the separator bytes, dropping empty fields

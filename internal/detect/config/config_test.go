@@ -22,9 +22,14 @@ const fixtures = "../../../testdata/fixtures/config"
 func format(found []detect.Finding, err error) string {
 	var b strings.Builder
 	for _, f := range found {
-		fmt.Fprintf(&b, "%d\t%s\t%s\t%s\t%d\t%s\t%s\t%s\t%s\t%s\n",
+		fmt.Fprintf(&b, "%d\t%s\t%s\t%s\t%d\t%s\t%s\t%s\t%s\t%s",
 			f.Line, f.RuleID, f.Algorithm, f.Primitive, f.KeySize, f.Mode, f.ParameterSet,
 			f.AssetType, f.Protocol, f.Snippet)
+		// Only when set, so the many lines without it don't change.
+		if f.Hybrid != "" {
+			fmt.Fprintf(&b, "\thybrid=%s", f.Hybrid)
+		}
+		b.WriteString("\n")
 	}
 	if err != nil {
 		fmt.Fprintf(&b, "error: %v\n", err)

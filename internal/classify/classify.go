@@ -233,7 +233,15 @@ var brokenCipher = map[string]string{
 // medium: they only need replacing before a quantum computer exists. When
 // the use is unknown (an import, a certificate's key), the higher rating
 // applies.
+//
+// The classical half of a hybrid key exchange (X25519 in X25519MLKEM768) is
+// the exception: the shared secret is derived from both halves, so it stays
+// safe as long as the post-quantum half holds.
 func quantumVulnerable(f detect.Finding) Result {
+	if f.Hybrid != "" {
+		return Result{Status: QuantumSafe, Severity: Info,
+			Reason: f.Algorithm + " is the classical half of the hybrid " + f.Hybrid + " key exchange; its post-quantum half keeps the shared secret safe from a quantum computer."}
+	}
 	r := Result{Status: QuantumVulnerable, Severity: High}
 	switch f.Primitive {
 	case "signature":

@@ -1,0 +1,89 @@
+# ShorStop docs site: Hugo with the Hextra theme, deployed to GitHub Pages by
+# .github/workflows/pages.yml. Local preview (from the repository root):
+#
+#   make docs-serve
+#
+# The rules reference (content/docs/rules.md) is generated from the code at
+# build time and isn't committed; see scripts/rulesdoc.
+
+baseURL: https://shorstophq.github.io/shorstop/
+# Shown in browser tabs and search results; the navbar shows navbar.title.
+title: "ShorStop: post-quantum cryptography scanner"
+locale: en-US
+enableRobotsTXT: true
+# lastmod for each page comes from its last commit, so the sitemap tells
+# search engines what changed (pages.yml checks out full history for this).
+enableGitInfo: true
+# No tags or categories: they'd only add empty pages to the sitemap.
+disableKinds: [taxonomy, term]
+
+module:
+  hugoVersion:
+    min: "0.146.0"
+  imports:
+    - path: github.com/imfing/hextra
+  mounts:
+    # Defining mounts replaces Hugo's defaults, so content and layouts are
+    # listed again. The demo GIF is shared with the README rather than copied.
+    - source: content
+      target: content
+    - source: layouts
+      target: layouts
+    - source: static
+      target: static
+    - source: ../docs/demo.gif
+      target: static/demo.gif
+
+markup:
+  highlight:
+    noClasses: false
+  goldmark:
+    renderer:
+      unsafe: false
+
+menu:
+  main:
+    - name: Docs
+      pageRef: /docs
+      weight: 1
+    - name: Rules
+      pageRef: /docs/rules
+      weight: 2
+    - name: Search
+      weight: 3
+      params:
+        type: search
+    - name: GitHub
+      weight: 4
+      url: https://github.com/shorstophq/shorstop
+      params:
+        icon: github
+
+params:
+  description: >-
+    Open-source scanner for quantum-vulnerable and broken cryptography in code,
+    certificates, configs and dependencies. Writes a CycloneDX CBOM and SARIF.
+  # Link preview image (og:image) for every page.
+  images: [og.png]
+  # Google Search Console's HTML-tag verification code for the URL-prefix
+  # property https://shorstophq.github.io/shorstop/ (the content="..." value).
+  # Empty means no tag is written.
+  googleSiteVerification: BOZat5nRCsjjE4tYR-u7D--ac089OJkvsXtcxN9tq3o
+  navbar:
+    title: ShorStop   # see layouts/_partials/navbar-title.html
+    displayTitle: true
+    displayLogo: false
+  footer:
+    displayCopyright: false
+    displayPoweredBy: false
+  editURL:
+    enable: true
+    base: https://github.com/shorstophq/shorstop/edit/main/site/content
+  page:
+    width: wide
+  theme:
+    default: system
+    displayToggle: true
+  search:
+    enable: true
+    type: flexsearch

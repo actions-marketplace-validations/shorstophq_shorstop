@@ -71,7 +71,7 @@ func CBOM(fs []detect.Finding, opts CBOMOptions) *cbom.BOM {
 		Metadata: cbom.Metadata{
 			Timestamp: opts.Timestamp.UTC().Format(time.RFC3339),
 			Tools: cbom.Tools{Components: []cbom.Component{{
-				Type: cbom.TypeApplication, Name: "shorstop", Version: opts.ToolVersion,
+				Type: cbom.TypeApplication, Name: ToolName, Version: opts.ToolVersion,
 			}}},
 			Component: &cbom.Component{BOMRef: projectRef, Type: cbom.TypeApplication, Name: cmp.Or(opts.ProjectName, "project")},
 		},
@@ -190,7 +190,7 @@ func (e *entry) component() cbom.Component {
 	if len(e.occs) > 0 {
 		occs := slices.Clone(e.occs)
 		slices.SortFunc(occs, func(a, b cbom.Occurrence) int {
-			return cmp.Or(cmp.Compare(a.Location, b.Location), cmp.Compare(a.Line, b.Line), cmp.Compare(a.AdditionalContext, b.AdditionalContext))
+			return cmp.Or(cmp.Compare(a.Location, b.Location), cmp.Compare(a.Line, b.Line), cmp.Compare(a.AdditionalContext, b.AdditionalContext), cmp.Compare(a.BOMRef, b.BOMRef))
 		})
 		// Identical findings (same file, rule and line text) share a
 		// fingerprint; number them so every bom-ref is unique. Numbering after
@@ -230,6 +230,11 @@ func (b *builder) algorithm(f detect.Finding, evidence bool) string {
 	name := algName(f)
 	prim := cmp.Or(f.Primitive, "unknown")
 	ref := "crypto:algorithm:" + name + ":" + prim
+	// The classical half of a hybrid is its own component: rated with the
+	// hybrid, and never merged with the same curve used on its own.
+	if f.Hybrid != "" {
+		ref += ":hybrid:" + f.Hybrid
+	}
 	ap := &cbom.AlgorithmProperties{
 		Primitive:              prim,
 		ParameterSetIdentifier: f.ParameterSet,
@@ -241,12 +246,15 @@ func (b *builder) algorithm(f detect.Finding, evidence bool) string {
 	}
 	// Rate the algorithm itself, not the finding's context (a dependency
 	// hint or a committed key is rated on its own component).
-	rating := classify.Classify(detect.Finding{Algorithm: f.Algorithm, Primitive: f.Primitive, KeySize: f.KeySize, Mode: f.Mode, ParameterSet: f.ParameterSet})
+	rating := classify.Classify(detect.Finding{Algorithm: f.Algorithm, Primitive: f.Primitive, KeySize: f.KeySize, Mode: f.Mode, ParameterSet: f.ParameterSet, Hybrid: f.Hybrid})
 	ap.NISTQuantumSecurityLevel = rating.NISTLevel
 	e := b.get(ref, cbom.Component{
 		Type: cbom.TypeCryptoAsset, Name: name,
 		CryptoProperties: &cbom.CryptoProperties{AssetType: detect.AssetAlgorithm, AlgorithmProperties: ap},
 	}, rating)
+	if f.Hybrid != "" && len(e.extra) == 0 {
+		e.extra = append(e.extra, cbom.Property{Name: "shorstop:hybrid", Value: f.Hybrid})
+	}
 	if evidence {
 		e.seen(f)
 	}

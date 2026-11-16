@@ -1,6 +1,7 @@
 package crawler
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -359,5 +360,35 @@ func BenchmarkScan(b *testing.B) {
 		if _, err := Scan(context.Background(), opts(root), dets); err != nil {
 			b.Fatal(err)
 		}
+	}
+}
+
+// TestScanSkipContent: a text file the hook rejects is counted, not scanned
+// and not listed; binary files never reach the hook.
+func TestScanSkipContent(t *testing.T) {
+	root := writeTree(t, map[string]string{
+		"keys.go":     "RSA\n",
+		"report.json": "REPORT RSA\n",
+		"blob.bin":    "REPORT\x00RSA\n",
+	})
+	o := opts(root)
+	var seen atomic.Int64
+	o.SkipContent = func(head []byte) bool {
+		seen.Add(1)
+		return bytes.HasPrefix(head, []byte("REPORT"))
+	}
+	det := &fakeDetector{name: "fake"}
+	res, err := Scan(context.Background(), o, []detect.Detector{det})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"keys.go"}; !slices.Equal(res.Files, want) {
+		t.Errorf("Files = %q, want %q", res.Files, want)
+	}
+	if res.Stats.Reports != 1 || res.Stats.Binary != 1 || len(res.Findings) != 1 {
+		t.Errorf("Stats = %+v, findings %d; want 1 report, 1 binary, 1 finding", res.Stats, len(res.Findings))
+	}
+	if seen.Load() != 2 {
+		t.Errorf("hook saw %d files, want the 2 text files", seen.Load())
 	}
 }

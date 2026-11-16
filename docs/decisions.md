@@ -429,7 +429,7 @@ Shared helpers: lines without `\r`, and byte offset → 1-based line.
 - **`npmLock`:** lockfile v2/v3 `packages` keyed by install path (name = after the last `node_modules/`, so nested copies are found); the root `""` entry and workspace paths are skipped. v1 is a nested `dependencies` tree, walked recursively.
 - **`yarnLock`:** classic and Berry. An entry header at column 0 lists specs; the name is taken before `@npm:` (Berry) or before the last `@` (`@scope/name@^1` keeps its scope). Then the indented `version` line is read, quoted (classic) or `version:` (Berry).
 - **`pnpmLock`:** YAML keys under `packages`, with the node's line number. Three key formats are supported: v9 `name@1.2.3`, v6 `/name@1.2.3(peer)`, and v5 `/name/1.2.3_peer@ver`. **v5 is checked first**, because its peer suffix contains an `@` of its own. The first version split `/openpgp/5.11.0_react@18.2.0` at that `@`, and the fixture caught it.
-- **`sortDeps`** sorts by line then name and drops exact duplicates.
+- **`sortDeps`** sorts by line, then name, then version, and drops exact duplicates. *Correction (Phase 6):* it first stopped at the name. One package listed with different versions (in `dependencies` and `devDependencies`, or nested twice in a v1 lockfile) gets the same line for each, and `slices.SortFunc` doesn't keep ties in their input order once a slice is longer than 12, so the map's random order showed in the output. `FuzzDetect` found it in CI; `TestSamePackageTwiceIsDeterministic` keeps it fixed. With the version as the third key every field of `dep` is compared, so the order is total.
 
 ### `python.go`
 - **`requirement`** (PEP 508): the distribution name, plus a version only for an exact `==` pin (not `===`, not `==3.*`).
@@ -478,7 +478,7 @@ Rates a finding: a **status** (`QUANTUM_VULNERABLE`, `WEAKENED`, `BROKEN`, `INSE
   - **sntrup761** is QUANTUM_SAFE, with a reason that says it's not NIST-standardised. **MD2/MD4** are BROKEN like MD5. **SHA-224** is ACCEPTABLE.
   - **Unknown algorithm** (crypto toolkits, undecodable material) is UNKNOWN/low with "check which algorithms it is used with".
 - **Severity: `info`** is added below the plan's four levels for ACCEPTABLE and QUANTUM_SAFE, so every finding has a severity, and `--fail-on low` (Phase 5) won't fail on AES-256.
-- **Known limitation, hybrids:** `X25519MLKEM768` reports X25519 and ML-KEM separately, and the X25519 half is rated high. In a hybrid the X25519 half isn't a risk, but on most real lines (`X25519MLKEM768:X25519`, `sntrup761x25519-sha512,curve25519-sha256`) plain X25519 is also offered as a fallback, and the crawler's merge folds the two into one finding. Telling them apart needs a "hybrid" flag set by the detector. *Open:* add it when the CBOM reporter needs hybrid components (CycloneDX models them as a combiner).
+- ~~**Known limitation, hybrids:** the X25519 half of `X25519MLKEM768` was rated high, and merged with a plain X25519 fallback on the same line.~~ Fixed in v0.1.3 with `Finding.Hybrid`; see "Hybrid key exchange (v0.1.3)" below.
 
 ### `type Status` / `type Severity` / `func (Severity) Rank() int`
 Typed strings, so JSON/SARIF output can use them as they are, and a typo is a compile error. `Rank` gives the order (critical 5 … info 1, 0 for anything unknown) for sorting and for the Phase 5 `--fail-on` threshold.
@@ -530,7 +530,7 @@ The CycloneDX 1.6 types for a CBOM. **Public** (`pkg/`, not `internal/`), as the
   - Each place it was seen is an `evidence.occurrences` entry. Go's source tree (2,349 findings) becomes a 1.3 MB CBOM.
 - **Committed private keys are not grouped:** each is its own component, with `state: "compromised"`, CycloneDX's own word for a key anyone with the repository now holds. Two keys of the same type are two secrets to rotate.
 - **Readable, stable bom-refs** (`crypto:algorithm:RSA-2048:unknown`, `crypto:protocol:tls:TLSv1.0`, `pkg:npm/node-rsa`), derived from the asset, never from scan order, so the backend can diff two scans by ref (the plan's requirement). *Option rejected:* hashing everything, as the plan suggested. Readable refs are just as stable and can be debugged by eye. Hashes are used only where the identity is long or private: certificates (subject, issuer, dates) and private keys (file and line).
-- **Deterministic output** for given options: components sorted by ref, occurrences by location, rule lists sorted. `TestCBOMIsDeterministic` reverses the findings and requires byte-identical output.
+- **Deterministic output** for given options: components sorted by ref, occurrences by location, line, context and finally `bom-ref` (Phase 6: so even two occurrences that agree on everything else have a fixed order), rule lists sorted. `TestCBOMIsDeterministic` reverses the findings and requires byte-identical output.
 - `metadata.component` is the scanned project (`bom-ref: project`), and `dependencies` says the project depends on each library, and what each library provides.
 
 ### `func WriteCBOM(w, bom)` / `func NewSerialNumber()`
@@ -907,8 +907,9 @@ Returns subexpression *i*'s text from a `FindAllSubmatchIndex` location, if it t
 
 ### `func (res *Result) sort()`
 - **Decisions & tradeoffs:**
-  - Findings are sorted by file, then line, then rule ID, then detector. The last key breaks ties when two detectors flag the same line with the same rule, so the order is fully deterministic.
-  - `slices.SortFunc` with `cmp.Or` (Go 1.22+) instead of `sort.Slice`. It's type-safe (no `interface{}`), faster, and multi-key comparison reads as one expression.
+  - Findings are sorted by file, then line, then rule ID, then detector. The last key breaks ties when two detectors flag the same line with the same rule.
+  - *Correction (Phase 6):* that left real ties: one rule finding several things on one line (`tls-cipher` finds 3DES, AES-128 and HMAC-SHA-1 in one `ssl_ciphers` line; `dep-npm-node-forge` finds three versions on one `package.json` line). Workers finish in random order, and an unstable sort put those ties in a different order from run to run, which SARIF and the table keep. **Now a stable sort** (`slices.SortStableFunc`): ties are always in the same file, and within a file the detectors' own order is deterministic (after the `sortDeps` fix). Checked: five scans of `testdata/fixtures` give byte-identical SARIF. *Option rejected:* comparing every remaining `Finding` field. It would be longer and would silently depend on each new field being added to the list.
+  - `slices.SortStableFunc` with `cmp.Or` (Go 1.22+) instead of `sort.Slice`. It's type-safe (no `interface{}`), faster, and multi-key comparison reads as one expression.
   - Errors use a **stable** sort because one path can have two errors (a directory error and a file error). Stable keeps their walk order.
 
 ---
@@ -1319,12 +1320,119 @@ The `standard` set plus `errorlint`, `misspell`, `unconvert`, `gocritic`. `gosec
 
 ---
 
+### `.github/dependabot.yml`
+- **Two ecosystems: `github-actions` and `gomod`.** Dependabot understands SHA pins with a version comment and updates both, which removes the cost recorded under `ci.yml` (manual updates). No `docker` entry: the Dockerfile is `FROM scratch`, so there's no base image to track.
+- **Weekly, with one group per ecosystem**, so a busy week gives two PRs rather than one per action or module. *Tradeoff:* one bad update holds back the rest of its group until it's split out by hand; for a handful of pinned actions and few modules that's cheaper than reviewing many small PRs.
+- **Commit prefixes `CI` and `Deps`** to match the repository's plain-sentence commit style instead of Dependabot's default `Bump ...` headers.
+
+### `SECURITY.md`
+- **Only the latest release is supported** while ShorStop is 0.x. Backporting fixes to older 0.x lines costs more than it's worth before 1.0.
+- **Reports go through GitHub private vulnerability reporting**, the same link the README already used, so there's one channel and no email address to publish. The repository owner has to enable the feature in the repository settings.
+- **Scope is spelled out.** In scope: crashes, hangs, unbounded memory or path escape on crafted input (the reason for the fuzz tests); injection through report fields; and the release chain (signatures, checksums, image, cask, the Action's install script). Out of scope: missed detections and severity disagreements, which are normal issues for a static scanner with documented limitations. Saying this up front saves reporters and maintainers a round trip.
+- **No promised response time.** A one-person project shouldn't publish an SLA it can't keep; one can be added once there's a team.
+
+### `CONTRIBUTING.md`
+- **Issue first only for changes that are hard to undo:** new detectors, output formats, flags and severity changes. Rules and small fixes go straight to a PR, since a rule's `examples` and fixture make it easy to review on its own.
+- **It states the rules the code already enforces** rather than inventing new ones: permanent rule IDs (from the `rules.yaml` header), regex `examples` (rejected by the loader), golden files via `-update`, deterministic output (the fuzz failure fixed in `fb9b5ce`), per-function entries in this file, and few dependencies.
+- **No CLA or DCO sign-off.** Apache 2.0 section 5 already licenses contributions under the project's license unless stated otherwise, so the file says that instead of adding a signing step that would put off small contributors. It can be added later if a company backs the project.
+- Every command in it was run before it was written down (`make test`, `make lint`, `-update` on all six packages leaves the goldens unchanged).
+
+### `.github/ISSUE_TEMPLATE/` (Phase 7)
+- **Issue forms (YAML), not Markdown templates**, so required fields are enforced: a missed-detection report without the input that shows it can't be acted on.
+- **Three forms, split by what the maintainer does next:** *New rule* (write a rule), *Missed detection / false positive / wrong severity* (fix a rule or detector), *Bug* (fix code or packaging). The plan calls community rules the growth engine, so the rule form comes first, links to CONTRIBUTING.md's "Adding a rule", and asks for exactly what a rule needs: lines that should match (they become the rule's checked `examples`) and lines that shouldn't (they stop false positives).
+- **The "where" dropdown lists `rules.Languages`** plus dependencies and config files, so it matches what ShorStop can actually scan. It has to be updated when a language is added.
+- **`config.yml` turns off blank issues** and adds a link for reporting vulnerabilities privately, so security reports aren't filed as public issues. *Cost:* someone with an issue that fits no form has to pick the closest one.
+- **Labels `rule`, `detection`, `bug`.** GitHub silently skips labels that don't exist, so `rule` and `detection` are created in the repository settings.
+
+### `docs/demo.tape` and `docs/demo.gif` (Phase 7)
+- **Recorded with vhs from a script in the repository**, not a screen capture, so it can be re-recorded with one command when the output changes, and the README never shows output the current version wouldn't print.
+- **It scans the public demo repository**, cloned during the hidden setup, rather than a fixture: what viewers see is what they get by trying it on that repository.
+- **`shorstop scan | head -n 29`** so the critical findings stay on screen; the full 80-line report scrolls them out of view within a frame. Piping drops the colours, since the table only colours a terminal; a `--color` flag only for the GIF isn't worth adding.
+- About 16 s and 340 KB, 1500×760 so no line wraps. Shows three things only: the table, `--fail-on` failing CI, and a CBOM.
+- **Docker recipe in the header** for machines where `brew install vhs` builds `cmake` and `ttyd` from source (Intel Macs). Files are copied in with `docker cp` rather than mounted, so no Docker Desktop file sharing has to be configured. The pinned `vhs:v0.10.0` image is Debian bookworm and lacks `git` and `jq`; apt needs `--allow-releaseinfo-change` since `stable` moved to trixie.
+
+### Docs site: `site/` (Phase 7)
+- **Hugo with the Hextra theme**, not MkDocs as first planned. When the site was started (2026-11-16), Material for MkDocs, the theme nearly every MkDocs site uses, had gone into maintenance mode with an announced end of life of 2026-11-05, and MkDocs 2.0 was a rewrite that drops plugins and breaks themes. Starting there meant migrating within months. *Options weighed:* Hugo + Hextra; Zensical (Material's successor, very young); Jekyll on GitHub Pages (no build step, but basic search and navigation). **Chose Hugo + Hextra** (project owner's choice): a single Go binary that has been stable for over ten years; Hextra needs no Node toolchain; it builds in under a second.
+- **`site/` is its own Go module** (`github.com/shorstophq/shorstop/site`), because Hugo modules need a `go.mod`. That also keeps it out of the scanner's `go test ./...`, lint and release. The theme is pinned in `site/go.mod` (`hextra v0.13.0`) and Hugo in `pages.yml` (`0.170.0`), so a theme or Hugo release can't change the site without a commit.
+- **The demo GIF is mounted, not copied** (`module.mounts` in `hugo.yaml`), so the README and the site always show the same recording. Defining any mount replaces Hugo's defaults, so `content`, `layouts` and `static` are listed again.
+- **Raw HTML stays off** (`goldmark.renderer.unsafe: false`); the landing page uses Hextra's shortcodes only.
+- **`layouts/_partials/custom/head-end.html`** turns off ligatures in code, because the theme's mono font draws `--flag` as a dash and people copy what they see, and keeps rule IDs on one line in tables.
+- **Every command and claim on the pages was run or checked first**, against v0.1.2: the install snippet in clean Debian and Alpine containers, the Docker and GitLab recipes, the config errors and flag precedence, custom `goast` and `deps` rules, the CBOM query, and that baselined findings stay in the CBOM. Doing so found that **regenerating a baseline while `.shorstop.yaml` sets `baseline:` writes an empty baseline**, because the configured baseline filters the output. The Baselines page therefore uses `--baseline ""` and warns about it. It also found that report files left in the scanned tree are scanned (now in Known limitations).
+- The repository's `.shorstop.yaml` excludes `site/`: like `docs/` and the README, it names algorithms on purpose.
+
+### Docs site: search indexing (Phase 7)
+- **A hand-written `description` on every page**, under about 160 characters, the length Google shows. Without one Hextra uses the start of the page text, which for Getting started is install instructions. The rules page's comes from `scripts/rulesdoc`.
+- **Descriptive site title** (`ShorStop: post-quantum cryptography scanner`): Hextra puts the bare site title in the home page's `<title>` and appends it to every other page's, so this is where the keywords people search for go. The navbar shows a short name through `params.navbar.title`, which needed a **one-line override of Hextra's `navbar-title.html`** (the theme has no setting for it). *Cost:* the override must be rechecked when Hextra is upgraded; its header says so.
+- **`og.png`**, a 1200×630 card rendered with headless Chrome from a small HTML page, so links shared on Hacker News, LinkedIn or Slack show a preview. Set once in `params.images`, used by every page.
+- **`disableKinds: [taxonomy, term]`**: the site has no tags or categories, and the empty pages were in the sitemap.
+- **`enableGitInfo`** gives each page a `lastmod` from its last commit, which goes into the sitemap; `pages.yml` checks out full history for it. The generated rules page has no git history, so it's listed without a date.
+- **`SoftwareApplication` JSON-LD on the home page** (name, category, operating systems, licence, free), built with `jsonify` so no value can break the JSON.
+- **Google Search Console** needs a URL-prefix property (`https://shorstophq.github.io/shorstop/`): a project site on `github.io` can't be a domain property. Verification is by HTML tag, written when `params.googleSiteVerification` is set. `robots.txt` under `/shorstop/` is ignored by crawlers (only the host root counts, and `shorstophq.github.io/robots.txt` doesn't exist, which means "allow all"), so **the sitemap has to be submitted in Search Console**.
+
+### `scripts/metrics` and `.github/workflows/metrics.yml` (Phase 7)
+The plan's "track: GitHub stars, Action installs, Docker pulls, release downloads".
+- **What can be measured, and what can't.** Stars, forks, watchers and per-asset release downloads are public API data. Views, clones, referrers and popular pages come from the traffic API, which needs a token with *Administration: read* and **keeps only 14 days**, so they have to be collected daily or they're lost. **Docker pulls can't be measured** (ghcr.io publishes no pull count through any API) and **neither can Action installs** (the Marketplace publishes none). Homebrew installs are counted inside the archive downloads, because the cask downloads the release archive.
+- **`checksums.txt` downloads as a proxy for Action runs.** The Action downloads `checksums.txt` and its signature on every run to verify the release, so the release assets are recorded by kind (`archive`, `checksums`, `signature`, `sbom`), and the summary shows archive and checksum downloads separately. It's an upper bound on Action runs: manual verifications download it too.
+- **Data structure: CSV files with the date as first column**, one file per kind of record (`repo`, `downloads`, `views`, `clones`, `referrers`, `paths`). *Options:* JSON Lines (one object per day), or a database. **Chose CSV:** opens in any spreadsheet, diffs line by line, and needs nothing to read. `upsert` replaces all rows of a date and keeps the others, so a second run on the same day changes nothing, and the traffic API's re-reported days (it revises the last 14) overwrite rather than duplicate. Rows are sorted, so the file only changes when a number does. A file whose header doesn't match is an error, never silently re-read with different columns.
+- **Referrers and popular pages are snapshots** (the API gives 14-day totals, not per-day numbers), recorded under the date they were taken.
+- **The README summary doesn't add up daily unique visitors**: a visitor who returns on three days would be counted three times. It shows total views and clones; the CSVs keep each day's uniques.
+- **Stored on an orphan `metrics` branch**, not `main`: a daily data commit would bury real history, and the ruleset that protects `main` doesn't apply to it. The workflow checks it out as a git worktree and pushes with the job's own token (`contents: write`; pushes made with that token don't trigger other workflows, and CI only runs on `main` anyway). The first run creates the branch. Tested against a local bare remote: the first run creates an orphan branch holding only the data, the second adds a commit.
+- **A Go program, not a shell script with `curl` and `jq`**, so the classification, the upsert and the summary are unit-tested against a fake API (`TestRunWithTrafficAndHistory` covers the 7-day delta and the re-fetched days). **Without `TRAFFIC_TOKEN` the traffic files are skipped with a note; with a token that fails, the run fails**, so an expired token is noticed instead of leaving a silent gap in the 14-day window.
+- 06:17 UTC: daily, and off the hour, when scheduled Actions runs are most delayed.
+
+### `scripts/rulesdoc` (Phase 7)
+- **Generates the rules reference at build time; the page is gitignored.** *Options:* (a) commit the generated page and check in CI that it's current; (b) generate it in the Pages build. **Chose (b):** nothing to forget to regenerate, and the reference always describes the code in the same commit. *Cost:* `make docs` needs Go as well as Hugo, which a Go project's contributors have anyway.
+- **Same sources as `shorstop rules list`:** the built-in pack plus `cert.RuleDescriptions` and `config.RuleDescriptions`, so the page and the CLI can't disagree on the 225 rules.
+- **Grouped by where people look:** Go; patterns by language (a rule listed under each language it applies to, catch-all rules last); dependencies by ecosystem; then certificates and configuration. Regex rules show their first `example`, since the examples are checked on every load and are the clearest description of what a rule finds.
+- Counts (rules, languages, ecosystems) are computed from the pack, not written in the text. The first draft said "12 languages" (`rules.Languages` has 12 keys, but no pattern rule targets Go, which the parser covers), and rendering it showed the mismatch.
+- **Table safety:** `code()` escapes `|` (GFM tables split cells on it before inline parsing, even inside code) and lengthens the backtick fence when the text holds backticks. `TestEveryRuleListed` checks every rule appears and every row has the header's cell count; `TestCode` covers the escaping.
+- The page's front matter sets `editURL` to `internal/rules/rules.yaml`, so "Edit this page" leads to where rules are actually changed.
+
+### `.github/workflows/pages.yml` (Phase 7)
+- **Pull requests build, `main` builds and deploys**, with `--panicOnWarning`, so a deprecated shortcode or a broken template fails before merge rather than after.
+- **Hugo is downloaded from its GitHub release and checked against the release's `checksums.txt`**, not installed by a third-party setup action: one less action with access to the job. The install step was run in a clean Debian container before committing.
+- Actions pinned to commit SHAs like the other workflows (`upload-pages-artifact` v5.0.0, `deploy-pages` v5.0.1). `configure-pages` isn't used: the base URL is fixed in `hugo.yaml`.
+- **`path` filters** limit runs to changes that affect the site: `site/`, the generator, the rule pack and the cert/config detectors (whose descriptions are on the page), and the demo GIF. The list is a YAML anchor shared by `push` and `pull_request`.
+- `deploy` alone gets `pages: write` and `id-token: write`; the build job only reads. Concurrency queues deployments instead of cancelling one mid-publish.
+
 ### `LICENSE`
 Apache 2.0, as the plan specifies. Downloaded verbatim from apache.org (sha256 `cfc7749b…3d30`), not retyped. Chosen over MIT for its explicit patent grant, which matters for a crypto tool that companies will adopt.
 
 ---
 
+## Benchmark: Kubernetes source (Phase 6, 2026-11-16)
+- **Setup:** the v0.1.2 release binary (`darwin_amd64`) on an Intel i9-9880H (8 physical cores, 16 threads), scanning a shallow clone of `kubernetes/kubernetes` at `96d09445` (31,968 tracked files, 406 MB). One warm-up run, then three runs each at `GOMAXPROCS=8 --workers 8` and at 16 (the default, `NumCPU`). JSON output to a file. Warm file cache; a cold-cache run needs `sudo purge` and wasn't measured.
+- **Result:** 25,456 files scanned, 998 findings. **~1.0 s wall time on 8 cores** (0.96–1.14 s) against the plan's target of under 30 s. 16 threads were no faster (0.97–1.07 s): hyperthreads share each core's execution units, and system time (reading files) is as large as user time. Peak memory 32–38 MB.
+- **Output is deterministic at this scale:** the six JSON reports are identical apart from the CBOM `timestamp` and `serialNumber`, which are meant to change per run, and three SARIF runs are byte-identical.
+- **Consequences:** the "revisit if benchmarks show…" items in the crawler (`sync.Pool` buffers, a parallel walker) stay closed: neither would matter at 1 s. `--workers` keeps its `NumCPU` default, since 16 is no slower than 8.
+
+## Fixes before launch (v0.1.3)
+
+Three problems found while checking every claim on the docs site against v0.1.2.
+
+### Own reports are never scanned: `report.IsOwnReport`, `crawler.Options.SkipContent`
+- **Problem:** a SARIF, CBOM or Markdown report left in the scanned tree names every algorithm it found, and the next scan reported them all again: the demo repository's 22 findings became 71 to 224. `selfExcludes` only covered the baseline in use and the file being written.
+- *Options:* (a) skip by file name (`*.sarif`, `cbom.json`), which misses renamed reports and would skip other tools' SARIF; (b) recognise ShorStop's own output by content. **Chose (b).** The crawler already reads each file's first 8000 bytes to detect binary files, and every format identifies ShorStop near its start: SARIF's `runs[0].tool.driver.name`, the CBOM's `metadata.tools.components[0].name` (both `"shorstop"`, now the shared constant `report.ToolName`), and the Markdown heading. Matching is whitespace-tolerant, so a report reformatted by `jq` or minified still matches, and anchored on where each format names its tool, so other tools' SARIF and CycloneDX files, and files that only mention ShorStop, are still scanned (`TestIsOwnReportLeavesOtherFilesAlone`).
+- **The crawler stays format-agnostic:** it takes a `SkipContent func(head []byte) bool` hook, because `internal/report` imports `crawler` and the reverse import would be a cycle. Skipped files get their own counter, `Stats.Reports`, shown in the summary as "N ShorStop reports", so nothing disappears silently. That adds a field to the summary line; no test or documented output pinned its exact text.
+- Binary files never reach the hook.
+
+### Writing over the baseline regenerates it: `samePath` in `runScan`
+- **Problem:** with `baseline:` in `.shorstop.yaml`, `shorstop scan -f sarif -o .shorstop/baseline.sarif` applied the old baseline while writing the new one, so the new file held only the findings that were new: next time, everything looked new. The docs worked around it with `--baseline ""`.
+- **Fix:** when `--output` and the baseline are the same file, the baseline isn't applied for that run, and a note on stderr says so. Writing a report into the file you compare against can only mean regenerating it. Compared with `os.SameFile` when both exist, so `./x` and `x`, or a symlink, still match; otherwise by absolute path, which also covers the **first** run, when the configured baseline doesn't exist yet: that used to fail with "no such file", and now writes it.
+
+### Hybrid key exchange (v0.1.3): `Finding.Hybrid`
+- **Problem:** the config detector reports a hybrid group's two halves separately, so the X25519 in `X25519MLKEM768` was rated `QUANTUM_VULNERABLE`/high, and `Dedupe` merged it with a plain `X25519` fallback on the same line. A post-quantum audience would read that as ShorStop not understanding hybrids.
+- **Model:** `Finding.Hybrid` holds the hybrid's name on its classical half only. The config detector sets it for every group or SSH key exchange that pairs a classical algorithm with ML-KEM or sntrup761 (`inHybrid`), so new hybrids added to the tables are covered without another list.
+- **Rating:** a quantum-vulnerable algorithm with `Hybrid` set is `QUANTUM_SAFE`/info: the shared secret is derived from both halves and holds while the post-quantum half does. Only that case: a broken algorithm stays broken (`TestHybridHalf`).
+- **The plain fallback is still reported.** In `X25519MLKEM768:X25519`, clients without post-quantum support get plain X25519, a real harvest-now-decrypt-later exposure. So `Hybrid` is part of a finding's subject in `Dedupe`, and the CBOM gives the hybrid half its own component (`…:hybrid:X25519MLKEM768`, with a `shorstop:hybrid` property) instead of merging it with the plain curve. The inventory still shows X25519 in use, rated by how it's used. *Option rejected:* dropping the classical half altogether, which was simpler but would remove X25519 from the inventory.
+- *Option deferred:* modelling the hybrid itself as one CycloneDX algorithm with primitive `combiner`. Nothing reads that yet, and the two-component model already rates both uses correctly.
+- **Fingerprints don't change for any other finding:** `Hybrid` is added to the fingerprint only when set, so baselines made with v0.1.2 still match (`TestFingerprintUnchangedWithoutHybrid` pins a v0.1.2 fingerprint; checked against a real v0.1.2 baseline of the demo repository). Hybrid halves get new fingerprints, which is right: they were wrongly reported before.
+- Golden files show the field as a trailing `hybrid=` column only on lines that have it, so the change to the goldens is just the hybrid lines.
+- **README sample:** its original sample project wasn't kept, so it was recreated as `testdata/readme-sample` from what the README describes, and the README now shows that project's real output. The X25519 high finding it used to show was this bug.
+
+---
+
 ## Open, not decided
 - ~~CI actions pinned to major tags~~: done, all workflows are pinned to commit SHAs (2026-11-03).
-- Dependabot (or Renovate) to raise PRs for pinned action and Go module updates.
-- A "hybrid" flag so the classical half of `X25519MLKEM768` isn't rated as quantum-vulnerable.
+- ~~Dependabot (or Renovate) to raise PRs for pinned action and Go module updates~~: done, `.github/dependabot.yml` (2026-11-16).
+- ~~A "hybrid" flag so the classical half of `X25519MLKEM768` isn't rated as quantum-vulnerable~~: done in v0.1.3 (`Finding.Hybrid`).
